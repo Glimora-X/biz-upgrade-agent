@@ -1,0 +1,100 @@
+{
+  "name": "biz-upgrade-agent",
+  "displayName": "biz框架升级助手：从 biz-framework 到 biz-core",
+  "description": "根据新旧框架的差异给出新的编码范式，帮助开发者平滑迁移框架版本",
+  "version": "1.0.0",
+  "publisher": "GlimoraX",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Glimora-X/biz-upgrade-agent.git"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "upgrade",
+    "biz-framework",
+    "biz-core"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescriptreact",
+    "onLanguage:vue",
+    "onLanguage:svelte"
+  ],
+  "main": "./dist/Main.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "bizMigration.showDashboard",
+        "title": "显示迁移仪表板",
+        "category": "Biz Migration"
+      },
+      {
+        "command": "bizMigration.scanProject",
+        "title": "扫描整个项目",
+        "category": "Biz Migration"
+      }
+    ],
+    "configuration": {
+      "title": "Biz Framework Upgrade",
+      "properties": {
+        "bizFrameworkMigration.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用/禁用迁移助手"
+        },
+        "bizFrameworkMigration.autoScan": {
+          "type": "boolean",
+          "default": true,
+          "description": "自动扫描打开的文件"
+        },
+        "bizFrameworkMigration.showDashboardOnStartup": {
+          "type": "boolean",
+          "default": false,
+          "description": "启动时显示迁移仪表板"
+        }
+      }
+    },
+    "agents": [
+      {
+        "id": "bizUpgradeAgent",
+        "name": "Biz Upgrade Assistant",
+        "activationEvents": [
+          "onStartupFinished"
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/babel__traverse": "^7.28.0",
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.23.0",
+    "@babel/traverse": "^7.23.0",
+    "@babel/types": "^7.23.0"
+  }
+}

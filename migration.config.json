@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "frameworkName": {
+    "old": "biz-framework",
+    "new": "biz-core"
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/*.test.ts"
+  ],
+  "customRules": [
+    ".migration/custom-rules.js"
+  ],
+  "rules": [
+    {
+      "id": "import-statement-change",
+      "severity": "error",
+      "category": "api",
+      "oldPattern": "from ['\"]biz-framework['\"]",
+      "newPattern": "from 'biz-core'",
+      "message": "请使用新的导入路径 'biz-core'",
+      "hoverMessage": "biz-framework 已升级为 biz-core",
+      "migrationGuide": "将所有 `import ... from 'biz-framework'` 更改为 `import ... from 'biz-core'`",
+      "quickFix": {
+        "title": "更新为 biz-core 导入",
+        "transform": "code.replace(/from ['\"]biz-framework['\"]/g, \"from 'biz-core'\")"
+      },
+      "examples": {
+        "before": "import { Component } from 'biz-framework';",
+        "after": "import { Component } from 'biz-core';"
+      }
+    },
+    {
+      "id": "lifecycle-method-deprecated",
+      "severity": "warning",
+      "category": "lifecycle",
+      "oldPattern": "componentWillMount",
+      "message": "componentWillMount 已废弃",
+      "hoverMessage": "此生命周期方法在 biz-core 中已被移除",
+      "migrationGuide": "使用 `useEffect` hook 或 `componentDidMount` 替代。如需在渲染前执行逻辑，请在构造函数中处理。",
+      "quickFix": {
+        "title": "替换为 componentDidMount",
+        "transform": "code.replace(/componentWillMount/g, 'componentDidMount')"
+      },
+      "examples": {
+        "before": "componentWillMount() {\n  this.fetchData();\n}",
+        "after": "componentDidMount() {\n  this.fetchData();\n}\n// 或使用 Hooks:\nuseEffect(() => {\n  fetchData();\n}, []);"
+      }
+    },
+    {
+      "id": "old-api-method",
+      "severity": "error",
+      "category": "api",
+      "oldPattern": "\\.getData\\(",
+      "newPattern": ".fetchData(",
+      "message": "getData() 方法已重命名为 fetchData()",
+      "hoverMessage": "API 方法名称变更",
+      "migrationGuide": "将 `getData()` 更改为 `fetchData()`，功能保持一致。",
+      "quickFix": {
+        "title": "更新为 fetchData()",
+        "transform": "code.replace(/\\.getData\\(/g, '.fetchData(')"
+      },
+      "examples": {
+        "before": "this.getData({ id: 123 });",
+        "after": "this.fetchData({ id: 123 });"
+      }
+    }
+  ]
+}
