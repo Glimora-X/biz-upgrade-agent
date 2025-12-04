@@ -36,12 +36,20 @@
       {
         "command": "bizMigration.showDashboard",
         "title": "显示迁移仪表板",
-        "category": "Biz Migration"
+        "category": "Biz Migration",
+        "icon": "$(dashboard)"
       },
       {
         "command": "bizMigration.scanProject",
         "title": "扫描整个项目",
-        "category": "Biz Migration"
+        "category": "Biz Migration",
+        "icon": "$(search)"
+      },
+      {
+        "command": "bizMigration.refreshRules",
+        "title": "刷新迁移规则",
+        "category": "Biz Migration",
+        "icon": "$(refresh)"
       }
     ],
     "configuration": {
@@ -61,35 +69,48 @@
           "type": "boolean",
           "default": false,
           "description": "启动时显示迁移仪表板"
+        },
+        "bizFrameworkMigration.rulePaths": {
+          "type": "array",
+          "default": [
+            ".migration/rules.json",
+            "migration.config.json"
+          ],
+          "description": "规则文件路径"
         }
       }
     },
-    "agents": [
-      {
-        "id": "bizUpgradeAgent",
-        "name": "Biz Upgrade Assistant",
-        "activationEvents": [
-          "onStartupFinished"
-        ]
-      }
-    ]
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "bizMigration.showDashboard",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "bizMigration.scanProject",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
     "package": "vsce package",
     "publish": "vsce publish"
   },
   "devDependencies": {
-    "@types/babel__traverse": "^7.28.0",
+    "@types/babel__traverse": "^7.20.0",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.80.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "@vscode/vsce": "^2.22.0",
-    "eslint": "^8.56.0",
+    "eslint": "^8.0.0",
     "typescript": "^5.0.0"
   },
   "dependencies": {
