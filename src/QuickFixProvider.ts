@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import { ASTAnalyzer } from "./ASTAnalyzer";
-import { MigrationRule } from "./interface";
+import { ASTContext, MigrationRule } from "./interface";
 
 export class QuickFixProvider implements vscode.CodeActionProvider {
   private rules: MigrationRule[] = [];
   private astAnalyzer: ASTAnalyzer;
 
-  constructor() {
-    this.astAnalyzer = new ASTAnalyzer();
+  constructor(astAnalyzer: ASTAnalyzer) {
+    this.astAnalyzer = astAnalyzer;
   }
 
   setRules(rules: MigrationRule[]) {
@@ -38,13 +38,50 @@ export class QuickFixProvider implements vscode.CodeActionProvider {
 
       action.edit = new vscode.WorkspaceEdit();
       const code = document.getText(diagnostic.range);
-      const newCode = rule.quickFix.transform(code, diagnostic.range);
-      
-      action.edit.replace(document.uri, diagnostic.range, newCode);
+
+      // 使用 AST 进行更智能的修复
+      // 如果需要基于 AST 的复杂转换
+      if (rule.astMatcher) {
+        try {
+          const fullCode = document.getText();
+          // 👈 使用 this.astAnalyzer 分析上下文
+          const analysisContext = this.astAnalyzer.analyzeContext(
+            fullCode,
+            document.uri.fsPath
+          );
+
+          // 基于上下文进行智能修复
+          // 例如：知道是从哪个模块导入的，可以做更精确的替换
+          const newCode = this.smartTransform(code, rule, analysisContext);
+          action.edit.replace(document.uri, diagnostic.range, newCode);
+        } catch {
+          // 降级到简单转换
+          const newCode = rule.quickFix.transform(code, diagnostic.range);
+          action.edit.replace(document.uri, diagnostic.range, newCode);
+        }
+      } else {
+        const newCode = rule.quickFix.transform(code, diagnostic.range);
+        action.edit.replace(document.uri, diagnostic.range, newCode);
+      }
 
       actions.push(action);
     }
 
     return actions;
+  }
+
+  // 添加智能转换方法
+  private smartTransform(
+    code: string,
+    rule: MigrationRule,
+    context: ASTContext
+  ): string {
+    // 基于 AST 上下文的智能转换
+    // 例如：检查导入来源，做更精确的替换
+    if (context.imports.has('getData') &&
+      context.imports.get('getData') === 'biz-framework') {
+      return code.replace(/getData/g, 'fetchData');
+    }
+    return code;
   }
 }

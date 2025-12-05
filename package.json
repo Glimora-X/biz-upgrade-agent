@@ -50,6 +50,11 @@
         "title": "刷新迁移规则",
         "category": "Biz Migration",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "bizMigration.analyzeCode",
+        "title": "分析代码结构",
+        "category": "Biz Migration"
       }
     ],
     "configuration": {
@@ -116,6 +121,7 @@
   "dependencies": {
     "@babel/parser": "^7.23.0",
     "@babel/traverse": "^7.23.0",
-    "@babel/types": "^7.23.0"
+    "@babel/types": "^7.23.0",
+    "minimatch": "^9.0.0"
   }
 }

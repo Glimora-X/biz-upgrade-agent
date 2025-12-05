@@ -49,6 +49,7 @@ export class ConfigLoader {
     this.config = config;
     return config;
   }
+
   /**
    * 热更新配置文件监听
    */

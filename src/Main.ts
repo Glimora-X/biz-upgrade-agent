@@ -8,22 +8,24 @@ import { ASTAnalyzer } from './ASTAnalyzer';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Biz Framework Migration Agent activated');
+  const astAnalyzer = new ASTAnalyzer();
 
   const configLoader = new ConfigLoader();
-  const detector = new DeprecationDetector();
-  const hoverProvider = new EnhancedHoverProvider();
-  const quickFixProvider = new QuickFixProvider();
+  const detector = new DeprecationDetector(astAnalyzer);
+  const hoverProvider = new EnhancedHoverProvider(astAnalyzer);
+  const quickFixProvider = new QuickFixProvider(astAnalyzer);
   const dashboard = new MigrationDashboard();
-  const astAnalyzer = new ASTAnalyzer();
 
   // 加载配置
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (workspaceRoot) {
+    detector.setWorkspaceRoot(workspaceRoot);
+
     configLoader.loadConfig(workspaceRoot).then(config => {
       detector.setRules(config.rules);
       hoverProvider.setRules(config.rules);
       quickFixProvider.setRules(config.rules);
-      
+
       // 扫描所有打开的文档
       vscode.workspace.textDocuments.forEach(doc => {
         if (doc.languageId === 'typescript' || doc.languageId === 'javascript') {
@@ -105,7 +107,53 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  context.subscriptions.push(configLoader, detector);
+  context.subscriptions.push(
+    vscode.commands.registerCommand('bizMigration.analyzeCode', () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showErrorMessage('请先打开一个文件');
+        return;
+      }
+
+      const code = editor.document.getText();
+
+      try {
+        const analysisContext = astAnalyzer.analyzeContext(
+          code,
+          editor.document.uri.fsPath
+        );
+
+        // 显示分析结果
+        const importList = Array.from(analysisContext.imports.entries())
+          .map(([name, source]) => `  • ${name} from '${source}'`)
+          .join('\n');
+
+        const message = `
+    📊 代码分析结果
+
+    📦 导入模块数: ${analysisContext.imports.size} 个
+
+    ${importList || '  (无导入)'}
+          `.trim();
+
+        vscode.window.showInformationMessage(
+          message,
+          { modal: false }
+        );
+
+        // 同时输出到控制台，方便调试
+        console.log('AST Analysis Context:', analysisContext);
+
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `代码分析失败: ${error instanceof Error ? error.message : String(error)}`
+        );
+        console.error('AST Analysis Error:', error);
+      }
+    })
+  );
+
+  // context.subscriptions.push(configLoader, detector, hoverProvider);
 }
 
 export function deactivate() {

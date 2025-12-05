@@ -29,7 +29,11 @@
       "examples": {
         "before": "import { Component } from 'biz-framework';",
         "after": "import { Component } from 'biz-core';"
-      }
+      },
+      "ignorePatterns": [
+        "**/legacy/**",
+        "**/*.spec.ts"
+      ]
     },
     {
       "id": "lifecycle-method-deprecated",

@@ -6,8 +6,8 @@ export class EnhancedHoverProvider implements vscode.HoverProvider {
   private rules: MigrationRule[] = [];
   private astAnalyzer: ASTAnalyzer;
 
-  constructor() {
-    this.astAnalyzer = new ASTAnalyzer();
+  constructor(astAnalyzer: ASTAnalyzer) {
+    this.astAnalyzer = astAnalyzer;
   }
 
   setRules(rules: MigrationRule[]) {
@@ -47,6 +47,7 @@ export class EnhancedHoverProvider implements vscode.HoverProvider {
 
     if (rule.astMatcher) {
       try {
+        // 👈 使用共享的 astAnalyzer 实例
         const matches = this.astAnalyzer.findMatches(code, rule.astMatcher);
         return matches.some(m => offset >= m.range.start && offset <= m.range.end);
       } catch {
