@@ -47,11 +47,24 @@ code --install-extension Glimora_X.biz-upgrade-agent
       "oldPattern": "oldMethod",
       "message": "请使用新方法",
       "hoverMessage": "此方法已废弃",
-      "migrationGuide": "使用 newMethod 替代"
+      "migrationGuide": "使用 newMethod 替代",
+      "ignorePatterns": ["**/legacy/**", "**/*.test.ts", "**/vendor/**"]
     }
   ]
 }
 ```
+
+### 规则级别的忽略模式
+
+每个规则可以通过 `ignorePatterns` 字段指定忽略检查的文件或文件夹：
+
+- 支持 glob 模式匹配
+- 相对于项目根目录
+- 常用模式：
+  - `**/legacy/**` - 忽略所有 legacy 文件夹
+  - `**/*.test.ts` - 忽略所有测试文件
+  - `src/old-code/**` - 忽略特定目录
+  - `**/vendor/**` - 忽略第三方代码
 
 ### VS Code 设置
 

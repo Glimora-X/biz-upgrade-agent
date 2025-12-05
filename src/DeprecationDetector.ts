@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { ASTAnalyzer } from './ASTAnalyzer';
 import { MigrationRule } from './interface';
-import * as minimatch from 'minimatch';
+import { minimatch } from 'minimatch';
 
 export class DeprecationDetector {
   private diagnosticCollection: vscode.DiagnosticCollection;

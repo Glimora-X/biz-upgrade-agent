@@ -33,7 +33,7 @@ export interface MigrationRule {
 
 export interface QuickFixProvider {
   title: string;
-  transform: (code: string, range: Range) => string;
+  transform: string | ((code: string) => string);
 }
 
 export interface ASTContext {

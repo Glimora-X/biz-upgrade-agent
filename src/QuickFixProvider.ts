@@ -56,11 +56,11 @@ export class QuickFixProvider implements vscode.CodeActionProvider {
           action.edit.replace(document.uri, diagnostic.range, newCode);
         } catch {
           // 降级到简单转换
-          const newCode = rule.quickFix.transform(code, diagnostic.range);
+          const newCode = this.applyTransform(code, rule.quickFix.transform);
           action.edit.replace(document.uri, diagnostic.range, newCode);
         }
       } else {
-        const newCode = rule.quickFix.transform(code, diagnostic.range);
+        const newCode = this.applyTransform(code, rule.quickFix.transform);
         action.edit.replace(document.uri, diagnostic.range, newCode);
       }
 
@@ -68,6 +68,20 @@ export class QuickFixProvider implements vscode.CodeActionProvider {
     }
 
     return actions;
+  }
+
+  // 应用转换
+  private applyTransform(code: string, transform: string | ((code: string) => string)): string {
+    if (typeof transform === 'function') {
+      return transform(code);
+    } else {
+      // 如果是字符串，使用 eval 执行（配置文件中的转换表达式）
+      try {
+        return eval(transform);
+      } catch {
+        return code;
+      }
+    }
   }
 
   // 添加智能转换方法
