@@ -26,9 +26,12 @@ export class EnhancedHoverProvider implements vscode.HoverProvider {
     const code = document.getText();
     const offset = document.offsetAt(position);
 
+    // 获取当前行的文本用于更好的匹配
+    const line = document.lineAt(position.line).text;
+
     // 查找匹配的规则
     for (const rule of this.rules) {
-      if (this.matchesRule(word, code, offset, rule)) {
+      if (this.matchesRule(word, code, offset, rule, line)) {
         return this.createHover(rule, wordRange);
       }
     }
@@ -36,21 +39,34 @@ export class EnhancedHoverProvider implements vscode.HoverProvider {
     return null;
   }
 
-  private matchesRule(word: string, code: string, offset: number, rule: MigrationRule): boolean {
+  private matchesRule(word: string, code: string, offset: number, rule: MigrationRule, line?: string): boolean {
     if (rule.oldPattern) {
-      const pattern = typeof rule.oldPattern === 'string' 
-        ? new RegExp(rule.oldPattern) 
+      const pattern = typeof rule.oldPattern === 'string'
+        ? new RegExp(rule.oldPattern)
         : rule.oldPattern;
-      
-      if (pattern.test(word)) return true;
+
+      // 先测试单词
+      if (pattern.test(word)) {
+        return true;
+      }
+
+      // 如果单词不匹配，尝试匹配整行（对于 import 语句很有用）
+      if (line && pattern.test(line)) {
+        return true;
+      }
     }
 
     if (rule.astMatcher) {
       try {
         // 👈 使用共享的 astAnalyzer 实例
         const matches = this.astAnalyzer.findMatches(code, rule.astMatcher);
-        return matches.some(m => offset >= m.range.start && offset <= m.range.end);
-      } catch {
+        const matched = matches.some(m => offset >= m.range.start && offset <= m.range.end);
+        if (matched) {
+          console.log('[Hover] AST matched:', rule.id);
+        }
+        return matched;
+      } catch (error) {
+        console.error('[Hover] AST match error:', error);
         return false;
       }
     }
@@ -58,29 +74,43 @@ export class EnhancedHoverProvider implements vscode.HoverProvider {
     return false;
   }
 
+
   private createHover(rule: MigrationRule, range: vscode.Range): vscode.Hover {
     const markdown = new vscode.MarkdownString();
     markdown.isTrusted = true;
-    
-    // 标题
-    markdown.appendMarkdown(`### 🔄 框架迁移提示\n\n`);
-    
-    // 问题描述
-    markdown.appendMarkdown(`**${rule.hoverMessage}**\n\n`);
-    
-    // 迁移指南
-    markdown.appendMarkdown(`#### 迁移指南\n\n${rule.migrationGuide}\n\n`);
-    
-    // 示例代码
-    if (rule.examples) {
-      markdown.appendMarkdown(`#### 代码示例\n\n`);
-      markdown.appendMarkdown(`**旧写法 (biz-framework):**\n\`\`\`typescript\n${rule.examples.before}\n\`\`\`\n\n`);
-      markdown.appendMarkdown(`**新写法 (biz-core):**\n\`\`\`typescript\n${rule.examples.after}\n\`\`\`\n\n`);
+
+    // 标题和严重程度
+    const severityIcon = {
+      error: '❣️',
+      warning: '⚠️',
+      info: '🧚‍♀️'
+    }[rule.severity];
+
+    markdown.appendMarkdown(`## 代码升级指南📌 \n\n\n\n`);
+
+    // 迁移指南（精简）
+    markdown.appendMarkdown(`${severityIcon} ${rule.hoverMessage}\n\n`);
+
+    // 代码示例（紧凑排版）
+    if (rule.examples && rule.examples.length > 0) {
+      markdown.appendMarkdown(`---\n\n`);
+
+      rule.examples.forEach((example, index) => {
+        // 多个示例时显示编号
+        const label = rule.examples!.length > 1 ? `示例 ${index + 1}` : '示例';
+        markdown.appendMarkdown(`**${label}**\n\n`);
+
+        // 使用更紧凑的代码块
+        markdown.appendMarkdown(
+          `\`\`\`typescript\n// 旧写法 (biz-framework)\n${example.before}\n\`\`\`\n` +
+          `\`\`\`typescript\n// 新写法 (biz-core)\n${example.after}\n\`\`\`\n\n`
+        );
+      });
     }
-    
+
     // 快速修复提示
     if (rule.quickFix) {
-      markdown.appendMarkdown(`💡 *点击灯泡图标使用快速修复*\n`);
+      markdown.appendMarkdown(`---\n\n💡 **可用快速修复** · 按 \`Ctrl+.\` 或点击灯泡图标\n`);
     }
 
     return new vscode.Hover(markdown, range);

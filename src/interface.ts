@@ -25,7 +25,7 @@ export interface MigrationRule {
   examples?: {
     before: string;
     after: string;
-  };
+  }[];
 
   // 忽略模式（针对此规则）
   ignorePatterns?: string[];
@@ -35,6 +35,7 @@ export interface QuickFixProvider {
   title: string;
   transform: string | ((code: string) => string);
 }
+
 
 export interface ASTContext {
   filePath: string;
