@@ -5,6 +5,7 @@ import { EnhancedHoverProvider } from './EnhancedHoverProvider';
 import { QuickFixProvider } from './QuickFixProvider';
 import { MigrationDashboard } from './MigrationDashboard';
 import { ASTAnalyzer } from './ASTAnalyzer';
+import { SyncManager } from './SyncManager';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Biz Framework Migration Agent activated');
@@ -15,6 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
   const hoverProvider = new EnhancedHoverProvider(astAnalyzer);
   const quickFixProvider = new QuickFixProvider(astAnalyzer);
   const dashboard = new MigrationDashboard();
+  const syncManager = new SyncManager();
 
   // 加载配置
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -104,6 +106,40 @@ export function activate(context: vscode.ExtensionContext) {
         await detector.scanDocument(document);
       }
       vscode.window.showInformationMessage('项目扫描完成！');
+    })
+  );
+
+  // 注册命令：一键同步升级代码
+  context.subscriptions.push(
+    vscode.commands.registerCommand('bizMigration.syncCode', async () => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage('请先打开工作区。');
+        return;
+      }
+
+      let workspaceRoot = workspaceFolders[0].uri.fsPath;
+      if (workspaceFolders.length > 1) {
+        const pick = await vscode.window.showQuickPick(
+          workspaceFolders.map(f => ({
+            label: f.name,
+            description: f.uri.fsPath,
+            value: f.uri.fsPath,
+          })),
+          { placeHolder: '选择要执行同步的工作区目录' }
+        );
+        if (!pick) return;
+        workspaceRoot = pick.value;
+      }
+
+      await syncManager.run(workspaceRoot);
+    })
+  );
+
+  // 注册命令：继续当前同步流程（用于冲突解决后手动恢复）
+  context.subscriptions.push(
+    vscode.commands.registerCommand('bizMigration.resumeSync', () => {
+      syncManager.resolvePending();
     })
   );
 

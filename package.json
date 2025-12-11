@@ -2,7 +2,7 @@
   "name": "biz-upgrade-agent",
   "displayName": "biz框架升级助手：从 biz-framework 到 biz-core",
   "description": "根据新旧框架的差异给出新的编码范式，帮助开发者平滑迁移框架版本",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "publisher": "GlimoraX",
   "icon": "images/icon.png",
   "repository": {
@@ -28,7 +28,9 @@
     "onLanguage:javascriptreact",
     "onLanguage:typescriptreact",
     "onLanguage:vue",
-    "onLanguage:svelte"
+    "onLanguage:svelte",
+    "onCommand:bizMigration.syncCode",
+    "onCommand:bizMigration.resumeSync"
   ],
   "main": "./dist/Main.js",
   "contributes": {
@@ -55,6 +57,18 @@
         "command": "bizMigration.analyzeCode",
         "title": "分析代码结构",
         "category": "Biz Migration"
+      },
+      {
+        "command": "bizMigration.syncCode",
+        "title": "一键同步升级代码",
+        "category": "Biz Migration",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "bizMigration.resumeSync",
+        "title": "继续同步流程（冲突解决后）",
+        "category": "Biz Migration",
+        "icon": "$(debug-continue)"
       }
     ],
     "configuration": {
@@ -93,6 +107,14 @@
         },
         {
           "command": "bizMigration.scanProject",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "bizMigration.syncCode",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "bizMigration.resumeSync",
           "when": "workspaceFolderCount > 0"
         }
       ]
