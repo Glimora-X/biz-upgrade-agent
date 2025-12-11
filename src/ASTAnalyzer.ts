@@ -8,10 +8,15 @@ export class ASTAnalyzer {
    * 解析代码为 AST
    */
   parse(code: string): any {
-    return parser.parse(code, {
-      sourceType: 'module',
-      plugins: ['jsx', 'typescript', 'decorators-legacy'],
-    });
+    try {
+      return parser.parse(code, {
+        sourceType: 'module',
+        plugins: ['jsx', 'typescript', 'decorators-legacy'],
+      });
+    } catch (err: any) {
+      const message = err?.message ? String(err.message) : 'Unknown parse error';
+      throw new Error(`ASTAnalyzer.parse failed: ${message}`);
+    }
   }
 
   /**
@@ -33,6 +38,26 @@ export class ASTAnalyzer {
       },
     });
 
+    // 记录顶层声明名称，便于规则快速判断作用域
+    ast.program.body.forEach((node: t.Statement | t.ModuleDeclaration) => {
+      if (t.isVariableDeclaration(node)) {
+        node.declarations.forEach(decl => {
+          if (t.isIdentifier(decl.id)) {
+            scope.push(decl.id.name);
+          }
+        });
+      }
+      if (t.isFunctionDeclaration(node) && node.id) {
+        scope.push(node.id.name);
+      }
+      if (t.isClassDeclaration(node) && node.id) {
+        scope.push(node.id.name);
+      }
+      if (t.isTSInterfaceDeclaration(node) && node.id) {
+        scope.push(node.id.name);
+      }
+    });
+
     return {
       filePath,
       sourceCode: code,
@@ -44,12 +69,16 @@ export class ASTAnalyzer {
   /**
    * 查找匹配的节点
    */
-  findMatches(code: string, matcher: (node: any, context: ASTContext) => boolean): Array<{
+  findMatches(
+    code: string,
+    matcher: (node: any, context: ASTContext) => boolean,
+    filePath = ''
+  ): Array<{
     node: any;
     range: { start: number; end: number };
   }> {
     const ast = this.parse(code);
-    const context = this.analyzeContext(code, '');
+    const context = this.analyzeContext(code, filePath);
     const matches: any[] = [];
 
     traverse(ast, {
@@ -67,6 +96,14 @@ export class ASTAnalyzer {
     });
 
     return matches;
+  }
+
+  /**
+   * 提供便捷的源码切片，避免重复手动 slice
+   */
+  getSourceSnippet(code: string, range: { start: number; end: number }): string {
+    if (!range) return '';
+    return code.slice(range.start, range.end);
   }
 
   /**
