@@ -6,6 +6,7 @@ import { QuickFixProvider } from './QuickFixProvider';
 import { MigrationDashboard } from './MigrationDashboard';
 import { ASTAnalyzer } from './ASTAnalyzer';
 import { SyncManager } from './SyncManager';
+import { QuickUpgradeManager } from './QuickUpgradeManager';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Biz Framework Migration Agent activated');
@@ -17,6 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
   const quickFixProvider = new QuickFixProvider(astAnalyzer);
   const dashboard = new MigrationDashboard();
   const syncManager = new SyncManager();
+  const quickUpgradeManager = new QuickUpgradeManager();
 
   // 加载配置
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -140,6 +142,40 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('bizMigration.resumeSync', () => {
       syncManager.resolvePending();
+    })
+  );
+
+  // 注册命令：快速升级（test/inte 环境）
+  context.subscriptions.push(
+    vscode.commands.registerCommand('bizMigration.quickUpgrade', async () => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage('请先打开工作区。');
+        return;
+      }
+
+      let workspaceRoot = workspaceFolders[0].uri.fsPath;
+      if (workspaceFolders.length > 1) {
+        const pick = await vscode.window.showQuickPick(
+          workspaceFolders.map(f => ({
+            label: f.name,
+            description: f.uri.fsPath,
+            value: f.uri.fsPath,
+          })),
+          { placeHolder: '选择要执行快速升级的工作区目录' }
+        );
+        if (!pick) return;
+        workspaceRoot = pick.value;
+      }
+
+      await quickUpgradeManager.run(workspaceRoot);
+    })
+  );
+
+  // 注册命令：继续快速升级流程（用于冲突解决后手动恢复）
+  context.subscriptions.push(
+    vscode.commands.registerCommand('bizMigration.resumeQuickUpgrade', () => {
+      quickUpgradeManager.resolvePending();
     })
   );
 

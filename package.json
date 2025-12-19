@@ -30,7 +30,9 @@
     "onLanguage:vue",
     "onLanguage:svelte",
     "onCommand:bizMigration.syncCode",
-    "onCommand:bizMigration.resumeSync"
+    "onCommand:bizMigration.resumeSync",
+    "onCommand:bizMigration.quickUpgrade",
+    "onCommand:bizMigration.resumeQuickUpgrade"
   ],
   "main": "./dist/Main.js",
   "contributes": {
@@ -67,6 +69,18 @@
       {
         "command": "bizMigration.resumeSync",
         "title": "继续同步流程（冲突解决后）",
+        "category": "Biz Migration",
+        "icon": "$(debug-continue)"
+      },
+      {
+        "command": "bizMigration.quickUpgrade",
+        "title": "快速升级（Test/Inte 环境）",
+        "category": "Biz Migration",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "bizMigration.resumeQuickUpgrade",
+        "title": "继续快速升级流程",
         "category": "Biz Migration",
         "icon": "$(debug-continue)"
       }
@@ -115,6 +129,14 @@
         },
         {
           "command": "bizMigration.resumeSync",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "bizMigration.quickUpgrade",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "bizMigration.resumeQuickUpgrade",
           "when": "workspaceFolderCount > 0"
         }
       ]
