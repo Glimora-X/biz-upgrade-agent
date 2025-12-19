@@ -2,7 +2,7 @@
   "name": "biz-upgrade-agent",
   "displayName": "biz框架升级助手：从 biz-framework 到 biz-core",
   "description": "根据新旧框架的差异给出新的编码范式，帮助开发者平滑迁移框架版本",
-  "version": "3.0.0",
+  "version": "4.1.0",
   "publisher": "GlimoraX",
   "icon": "images/icon.png",
   "repository": {
