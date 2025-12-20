@@ -103,13 +103,13 @@ export class QuickUpgradeManager {
     const envOptions: EnvPick[] = [
       {
         label: '$(cloud) Test 环境',
-        description: 'test-220915 ← plus-test-250918',
+        description: 'plus-upgrade-test → test-220915',
         detail: '测试环境快速升级',
         value: 'test',
       },
       {
         label: '$(rocket) Inte 环境',
-        description: 'sprint-251225 ← plus-upgrade-sprint',
+        description: 'plus-upgrade-sprint → sprint-251225',
         detail: '集成环境快速升级',
         value: 'inte',
       },
@@ -127,7 +127,7 @@ export class QuickUpgradeManager {
     const branchMap = {
       test: {
         targetBranch: 'test-220915',
-        sourceBranch: 'plus-test-250918',
+        sourceBranch: 'plus-upgrade-test',
       },
       inte: {
         targetBranch: 'sprint-251225',
@@ -236,21 +236,13 @@ export class QuickUpgradeManager {
         command: () => this.commitChanges(sourceBranch, workspaceRoot),
       },
 
-      // 7. 推送特性分支
-      {
-        kind: 'command',
-        title: `推送特性分支到 origin/${featureBranch}`,
-        command: () => this.pushFeatureBranch(featureBranch, workspaceRoot),
-      },
-
-      // 10. 合并前确认（二次确认）
+      // 7. 合并前确认（二次确认）
       {
         kind: 'pause',
         title: `⚠️  即将合并到目标分支 ${targetBranch}`,
         detail: `请确认以下信息：
 ✓ 特性分支 ${featureBranch} 已完成升级
 ✓ 单测已通过（或已知风险）
-✓ 代码已推送到远程
 
 注意：此操作将切到 ${targetBranch} 分支进行代码合并，请谨慎操作！
 
@@ -772,69 +764,6 @@ export class QuickUpgradeManager {
       // Git 提交失败，但不终止流程
       this.output.appendLine('⚠️  Git 提交失败，可能没有需要提交的变更或已经提交过\n');
       // 提交失败时不抛出错误，允许流程继续
-    }
-  }
-
-  /**
-   * 推送特性分支
-   */
-  private async pushFeatureBranch(featureBranch: string, cwd: string): Promise<void> {
-    this.output.appendLine(`> git push -u origin ${featureBranch}`);
-
-    try {
-      // 尝试推送并设置上游分支
-      const { stdout, stderr } = await execAsync(`git push -u origin ${featureBranch}`, { cwd });
-      if (stdout) this.output.appendLine(stdout.trim());
-      if (stderr) this.output.appendLine(stderr.trim());
-      this.output.appendLine('✅ 特性分支推送成功\n');
-    } catch (error) {
-      const err = error as { stderr?: string; stdout?: string; message: string };
-      const stderr = (err.stderr || '').trim();
-      const stdout = (err.stdout || '').trim();
-      const message = err.message || '';
-      const merged = [stdout, stderr, message].filter(Boolean).join('\n');
-
-      if (merged) this.output.appendLine(merged);
-
-      // 检测是否是 non-fast-forward 错误
-      const isNonFastForward = /rejected.*non-fast-forward|rejected.*fetch first/i.test(merged);
-
-      if (isNonFastForward) {
-        this.output.appendLine('');
-        this.output.appendLine('⚠️  推送失败：远程分支已存在且历史不一致');
-        this.output.appendLine('');
-
-        const choice = await vscode.window.showWarningMessage(
-          `推送 ${featureBranch} 失败\n\n原因：远程分支已存在且历史不一致（non-fast-forward）\n\n可能的情况：\n• 之前推送过该分支，后来本地分支被重建或重置\n• 其他人推送了同名分支\n\n建议：\n• 强制推送会覆盖远程分支（谨慎使用）\n• 或者使用不同的分支名`,
-          { modal: true },
-          '强制推送（覆盖远程）',
-          '取消推送',
-          '更换分支名'
-        );
-
-        if (choice === '强制推送（覆盖远程）') {
-          // 使用 --force-with-lease 更安全的强制推送
-          this.output.appendLine('⚠️  执行强制推送...');
-          this.output.appendLine(`> git push --force-with-lease origin ${featureBranch}`);
-
-          try {
-            const { stdout, stderr } = await execAsync(`git push --force-with-lease origin ${featureBranch}`, { cwd });
-            if (stdout) this.output.appendLine(stdout.trim());
-            if (stderr) this.output.appendLine(stderr.trim());
-            this.output.appendLine('✅ 强制推送成功\n');
-          } catch (forceError) {
-            this.output.appendLine('❌ 强制推送失败\n');
-            throw forceError;
-          }
-        } else if (choice === '更换分支名') {
-          throw new Error('用户选择更换分支名，请重新运行升级流程并使用不同的分支名');
-        } else {
-          throw new Error('用户取消推送特性分支');
-        }
-      } else {
-        // 其他推送错误
-        throw error;
-      }
     }
   }
 

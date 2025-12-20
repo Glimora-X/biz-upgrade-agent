@@ -11,34 +11,34 @@
 - **自定义规则** - 支持多来源配置、自定义规则文件和规则级别的忽略模式
 - **配置热更新** - 修改配置文件后自动重新加载规则，无需重启
 
-## 📦 安装
-
-### 在 Cursor / VS Code / Trae / Kiro等IDE中通过以下方式安装：
-
-Extensions → Install from VSIX → 选择文件: .upgrade/biz-upgrade-helper-X.X.X.vsix 
+## 📦 插件安装
 
 ### 在 VS Code 扩展市场搜索 `biz框架升级助手` 或通过命令行安装：
-
 ```bash
 code --install-extension GlimoraX.biz-upgrade-helper
 ```
+
+### 在 Cursor / VS Code / Trae / Kiro 等 IDE 中可以通过以下方式安装：
+
+Extensions → Install from VSIX → 选择文件: .upgrade/biz-upgrade-helper-X.X.X.vsix
+
 
 ## 🚀 使用方法
 
 ### 基本使用
 
-1. 打开包含 `biz-framework` 代码的项目
+1. 在装了插件的IDE上打开app-service-plus项目
 2. 插件会自动扫描并标记需要升级的代码（支持 JavaScript、TypeScript、JSX、TSX、Vue、Svelte）
 3. 悬停在标记处查看升级指南和代码示例
-4. 使用指定命令进行一键代码升级
+4. `cmd+shift+P` 使用Helper命令进行一键代码升级
 5. 点击灯泡图标或按 `Ctrl+.` 使用快速修复
 
-### 命令
+### 命令介绍
 
 - `Biz Helper: 一键代码升级` - 启动自动化升级流程（test/inte 环境）
 - `Biz Helper: 继续升级流程` - 在解决冲突或完成手动操作后继续升级流程
 
-### 一键代码升级功能介绍
+## 一键代码升级功能说明
 
 该功能提供了完整的 Git 工作流自动化，适用于 test/inte 环境的快速升级：
 
@@ -48,15 +48,20 @@ code --install-extension GlimoraX.biz-upgrade-helper
 4. **冲突处理** - 自动检测合并冲突，暂停流程等待手动解决
 5. **升级脚本** - 在集成终端中执行升级脚本，保持彩色输出
 6. **单测验证** - 可选运行单元测试验证代码正确性
-7. **代码提交** - 自动提交升级变更并推送到远程
+7. **代码提交** - 自动提交升级变更到本地特性分支
 8. **分支合并** - 合并特性分支到目标分支并推送
 
 **升级流程示例：**
 
-- **Test 环境**：`test-220915 ← plus-test-250918`
-- **Inte 环境**：`sprint-251225 ← plus-upgrade-sprint`
+- **Test 环境**：`源码分支(plus-upgrade-test) → 本地特性分支 → 目标分支（test-220915 ）`
+- **Inte 环境**：`源码分支(plus-upgrade-sprint） → 本地特性分支 → 目标分支（sprint-251225）`
 
 特性分支命名格式：`upgrade/{env}-{suffix}`（如：`upgrade/test-250918`）
+
+## 升级过程中的冲突解决技巧
+- 遇见voucherconfig文件 先采用当前分支，然后将app-service源码copy出来，后续通过脚本升级即可
+- 遇见新写法的冲突一般采用当前，如冲突带有bizSchemaManager、bizApplication关键字
+- 出现引用冲突的可以使用做简单对比，一般可以先采用新分支的，后续通过脚本升级
 
 ## ⚙️ 配置
 
