@@ -214,21 +214,15 @@ export class QuickUpgradeManager {
       // 4. 执行升级脚本（自动等待完成，保持彩色输出）
       {
         kind: 'command',
-        title: '正在执行升级脚本，请在终端中查看进度...',
+        title: '正在执行升级脚本与单测验证，请在终端中查看进度...',
         command: () => this.execInTerminalAndWait('node ./scripts/upgrade-bizcore.js', workspaceRoot, '升级脚本'),
       },
 
-      // 5. 运行单测（可选）
-      {
-        kind: 'command',
-        title: '运行单测 yarn test',
-        command: () => this.runOptionalTest(workspaceRoot),
-      },
-
+     
       // 6. 提交特性分支代码
       {
         kind: 'command',
-        title: '提交升级变更',
+        title: '提交升级变更，等待git commit完成...',
         command: () => this.commitChanges(sourceBranch, workspaceRoot),
       },
 
@@ -237,6 +231,20 @@ export class QuickUpgradeManager {
         kind: 'command',
         title: `推送特性分支到 origin/${featureBranch}`,
         command: () => this.pushFeatureBranch(featureBranch, workspaceRoot),
+      },
+      
+       // 10. 合并前确认（二次确认）
+       {
+        kind: 'pause',
+        title: `⚠️  即将合并到目标分支 ${targetBranch}`,
+        detail: `请确认以下信息：
+✓ 特性分支 ${featureBranch} 已完成升级
+✓ 单测已通过（或已知风险）
+✓ 代码已推送到远程
+
+注意：此操作将切到 ${targetBranch} 分支进行代码合并，请谨慎操作！
+
+确认无误后点击"继续"按钮。`,
       },
 
       // 8. 切回目标分支
@@ -253,19 +261,7 @@ export class QuickUpgradeManager {
         command: `git pull origin ${targetBranch}`,
       },
 
-      // 10. 合并前确认（二次确认）
-      {
-        kind: 'pause',
-        title: `⚠️  即将合并到目标分支 ${targetBranch}`,
-        detail: `请确认以下信息：
-✓ 特性分支 ${featureBranch} 已完成升级
-✓ 单测已通过（或已知风险）
-✓ 代码已推送到远程
-
-注意：此操作将修改 ${targetBranch} 分支，请谨慎操作！
-
-确认无误后点击"继续"按钮。`,
-      },
+     
 
       // 11. 合并特性分支到目标分支（自动检测冲突）
       {
@@ -273,6 +269,13 @@ export class QuickUpgradeManager {
         title: `合并 ${featureBranch} 到 ${targetBranch}`,
         command: () => this.runWithConflictSupport(`git merge ${featureBranch}`, workspaceRoot),
       },
+       // 5. 运行单测（可选）
+       {
+        kind: 'command',
+        title: `运行 ${targetBranch}分支的单测 yarn test`,
+        command: () => this.runOptionalTest(workspaceRoot),
+      },
+
 
       // 12. 推送目标分支
       {
