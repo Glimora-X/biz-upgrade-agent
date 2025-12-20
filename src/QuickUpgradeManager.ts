@@ -678,7 +678,7 @@ export class QuickUpgradeManager {
   private async runOptionalTest(cwd: string) {
     // 使用模态对话框，确保用户能看到并做出选择
     const choice = await vscode.window.showInformationMessage(
-      '是否在${targetBranch}分支的运行单测？\n\n单测通常需要 1-10 分钟，建议在升级后运行以验证代码正确性。',
+      `代码已合并完成，是否在目标分支运行单测？\n\n单测通常需要 1-10 分钟，建议在升级后运行以验证代码正确性。`,
       { modal: true },
       '运行',
       '跳过'
