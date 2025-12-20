@@ -396,7 +396,7 @@ export class SyncManager {
       // 对 pull/merge 的非零返回，统一当作需要人工处理（即便未显式输出 CONFLICT）
       if (isConflict || (warnOnConflict && isMergeOrPull)) {
         if (merged) this.output.appendLine(merged);
-        vscode.window.showWarningMessage('检测到可能的冲突/合并中断，请在 SCM 视图中解决后点击“继续”或执行命令：Biz Migration: 继续同步流程。');
+        vscode.window.showWarningMessage('检测到可能的冲突/合并中断，请在 SCM 视图中解决后点击“继续”或执行命令：Biz Helper: 继续同步流程。');
         await this.openConflictResolver();
         return;
       }
@@ -467,7 +467,7 @@ export class SyncManager {
     this.output.appendLine('');
     this.output.appendLine('='.repeat(50));
     this.output.appendLine(`⏸️  ${message}`);
-    this.output.appendLine('请处理完成后执行命令: "Biz Migration: 继续同步流程"');
+    this.output.appendLine('请处理完成后执行命令: "Biz Helper: 继续同步流程"');
     this.output.appendLine('='.repeat(50));
     this.output.appendLine('');
 
@@ -478,7 +478,7 @@ export class SyncManager {
     );
     statusBarItem.text = '$(debug-pause) 等待继续同步...';
     statusBarItem.tooltip = message;
-    statusBarItem.command = 'bizMigration.continue'; // 绑定到继续命令
+    statusBarItem.command = 'bizHelper.continue'; // 绑定到继续命令
     statusBarItem.show();
 
     // 也显示一个通知

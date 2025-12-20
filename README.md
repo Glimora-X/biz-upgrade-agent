@@ -29,8 +29,8 @@ code --install-extension Glimora_X.biz-upgrade-agent
 
 ### 命令
 
-- `Biz Migration: 显示迁移仪表板` - 打开迁移进度面板
-- `Biz Migration: 扫描整个项目` - 扫描项目中所有文件
+- `Biz Helper: 显示迁移仪表板` - 打开迁移进度面板
+- `Biz Helper: 扫描整个项目` - 扫描项目中所有文件
 
 ## ⚙️ 配置
 

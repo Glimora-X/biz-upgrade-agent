@@ -1,8 +1,8 @@
 {
-  "name": "biz-upgrade-agent",
-  "displayName": "biz框架升级助手：从 biz-framework 到 biz-core",
-  "description": "根据新旧框架的差异给出新的编码范式，帮助开发者平滑迁移框架版本",
-  "version": "4.1.0",
+  "name": "biz-upgrade-helper",
+  "displayName": "biz框架升级助手: 从 biz-framework 到 biz-core",
+  "description": "帮助开发者平滑迁移框架版本",
+  "version": "5.0.0",
   "publisher": "GlimoraX",
   "icon": "images/icon.png",
   "repository": {
@@ -28,60 +28,27 @@
     "onLanguage:javascriptreact",
     "onLanguage:typescriptreact",
     "onLanguage:vue",
-    "onLanguage:svelte",
-    "onCommand:bizMigration.syncCode",
-    "onCommand:bizMigration.resumeSync",
-    "onCommand:bizMigration.quickUpgrade",
-    "onCommand:bizMigration.resumeQuickUpgrade"
+    "onLanguage:svelte"
   ],
   "main": "./dist/Main.js",
   "contributes": {
     "commands": [
       {
-        "command": "bizMigration.showDashboard",
-        "title": "显示迁移仪表板",
-        "category": "Biz Migration",
-        "icon": "$(dashboard)"
-      },
-      {
-        "command": "bizMigration.scanProject",
-        "title": "扫描整个项目",
-        "category": "Biz Migration",
-        "icon": "$(search)"
-      },
-      {
-        "command": "bizMigration.refreshRules",
+        "command": "bizHelper.refreshRules",
         "title": "刷新迁移规则",
-        "category": "Biz Migration",
+        "category": "Biz Helper",
         "icon": "$(refresh)"
       },
       {
-        "command": "bizMigration.analyzeCode",
-        "title": "分析代码结构",
-        "category": "Biz Migration"
-      },
-      {
-        "command": "bizMigration.syncCode",
-        "title": "一键同步升级代码",
-        "category": "Biz Migration",
-        "icon": "$(cloud-upload)"
-      },
-      {
-        "command": "bizMigration.resumeSync",
-        "title": "继续同步流程（冲突解决后）",
-        "category": "Biz Migration",
-        "icon": "$(debug-continue)"
-      },
-      {
-        "command": "bizMigration.quickUpgrade",
-        "title": "快速升级（Test/Inte 环境）",
-        "category": "Biz Migration",
+        "command": "bizHelper.quickUpgrade",
+        "title": "一键代码升级",
+        "category": "Biz Helper",
         "icon": "$(rocket)"
       },
       {
-        "command": "bizMigration.resumeQuickUpgrade",
-        "title": "继续快速升级流程",
-        "category": "Biz Migration",
+        "command": "bizHelper.resumeQuickUpgrade",
+        "title": "继续升级流程",
+        "category": "Biz Helper",
         "icon": "$(debug-continue)"
       }
     ],
@@ -116,27 +83,11 @@
     "menus": {
       "commandPalette": [
         {
-          "command": "bizMigration.showDashboard",
+          "command": "bizHelper.quickUpgrade",
           "when": "workspaceFolderCount > 0"
         },
         {
-          "command": "bizMigration.scanProject",
-          "when": "workspaceFolderCount > 0"
-        },
-        {
-          "command": "bizMigration.syncCode",
-          "when": "workspaceFolderCount > 0"
-        },
-        {
-          "command": "bizMigration.resumeSync",
-          "when": "workspaceFolderCount > 0"
-        },
-        {
-          "command": "bizMigration.quickUpgrade",
-          "when": "workspaceFolderCount > 0"
-        },
-        {
-          "command": "bizMigration.resumeQuickUpgrade",
+          "command": "bizHelper.resumeQuickUpgrade",
           "when": "workspaceFolderCount > 0"
         }
       ]

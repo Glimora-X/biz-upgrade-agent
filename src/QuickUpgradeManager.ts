@@ -859,7 +859,7 @@ export class QuickUpgradeManager {
       this.output.appendLine(step.detail);
     }
     this.output.appendLine('');
-    this.output.appendLine('👉 请处理完成后执行命令: "Biz Migration: 继续快速升级"');
+    this.output.appendLine('👉 请处理完成后执行命令: "Biz Helper: 继续快速升级"');
     this.output.appendLine('='.repeat(60));
     this.output.appendLine('');
 
@@ -874,9 +874,9 @@ export class QuickUpgradeManager {
       999999
     );
     this.currentStatusBarItem.text = '$(debug-pause) 点击继续升级';
-    this.currentStatusBarItem.tooltip = `${step.title}\n\n点击继续或执行命令: Biz Migration: 继续快速升级`;
+    this.currentStatusBarItem.tooltip = `${step.title}\n\n点击继续或执行命令: Biz Helper: 继续快速升级`;
     this.currentStatusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-    this.currentStatusBarItem.command = 'bizMigration.resumeQuickUpgrade';
+    this.currentStatusBarItem.command = 'bizHelper.resumeQuickUpgrade';
     this.currentStatusBarItem.show();
 
     // 显示非模态通知（不阻塞界面，允许操作）

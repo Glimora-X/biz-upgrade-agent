@@ -10,7 +10,7 @@ export class DeprecationDetector {
   private workspaceRoot: string = '';
 
   constructor(astAnalyzer: ASTAnalyzer) {
-    this.diagnosticCollection = vscode.languages.createDiagnosticCollection('bizMigration');
+    this.diagnosticCollection = vscode.languages.createDiagnosticCollection('bizHelper');
     this.astAnalyzer = astAnalyzer;
   }
 
