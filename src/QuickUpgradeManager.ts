@@ -713,7 +713,7 @@ export class QuickUpgradeManager {
     await this.execLogged('git add .', cwd);
 
     // 让用户填写提交信息
-    const defaultMessage = `upgrade(CPYF-11630):${this.getDateTag()} ${sourceBranch} 分支代码升级 `;
+    const defaultMessage = `upgrade(CPYF-11630):${this.getDateTag(true)} ${sourceBranch} 分支代码升级 `;
     const commitMessage = await vscode.window.showInputBox({
       prompt: '请输入提交信息（Commit Message）',
       placeHolder: '例如：chore: upgrade from plus-test-250918',
@@ -889,11 +889,17 @@ export class QuickUpgradeManager {
   /**
    * 获取日期标签（YYMMDD）
    */
-  private getDateTag(): string {
+  private getDateTag(withTime: boolean = false): string {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = `${now.getMonth() + 1}`.padStart(2, '0');
     const day = `${now.getDate()}`.padStart(2, '0');
+    const time = `${now.getHours()}`.padStart(2, '0');
+    const minute = `${now.getMinutes()}`.padStart(2, '0');
+    const second = `${now.getSeconds()}`.padStart(2, '0');
+    if (withTime) {
+      return `${year}${month}${day} ${time}:${minute}:${second}`;
+    }
     return `${year}${month}${day}`;
   }
 }
