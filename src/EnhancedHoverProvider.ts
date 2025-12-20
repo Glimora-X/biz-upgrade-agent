@@ -1,16 +1,16 @@
 import * as vscode from 'vscode';
 import { ASTAnalyzer } from "./ASTAnalyzer";
-import { MigrationRule } from "./interface";
+import { UpgradeRule } from "./interface";
 
 export class EnhancedHoverProvider implements vscode.HoverProvider {
-  private rules: MigrationRule[] = [];
+  private rules: UpgradeRule[] = [];
   private astAnalyzer: ASTAnalyzer;
 
   constructor(astAnalyzer: ASTAnalyzer) {
     this.astAnalyzer = astAnalyzer;
   }
 
-  setRules(rules: MigrationRule[]) {
+  setRules(rules: UpgradeRule[]) {
     this.rules = rules;
   }
 
@@ -39,7 +39,7 @@ export class EnhancedHoverProvider implements vscode.HoverProvider {
     return null;
   }
 
-  private matchesRule(word: string, code: string, offset: number, rule: MigrationRule, line?: string): boolean {
+  private matchesRule(word: string, code: string, offset: number, rule: UpgradeRule, line?: string): boolean {
     if (rule.oldPattern) {
       const pattern = typeof rule.oldPattern === 'string'
         ? new RegExp(rule.oldPattern)
@@ -75,7 +75,7 @@ export class EnhancedHoverProvider implements vscode.HoverProvider {
   }
 
 
-  private createHover(rule: MigrationRule, range: vscode.Range): vscode.Hover {
+  private createHover(rule: UpgradeRule, range: vscode.Range): vscode.Hover {
     const markdown = new vscode.MarkdownString();
     markdown.isTrusted = true;
 

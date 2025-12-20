@@ -1,7 +1,7 @@
 /**
- * 迁移规则定义
+ * 升级规则定义
  */
-export interface MigrationRule {
+export interface UpgradeRule {
   id: string;
   severity: 'error' | 'warning' | 'info';
   category: 'api' | 'pattern' | 'structure' | 'lifecycle';
@@ -16,7 +16,7 @@ export interface MigrationRule {
   // 提示信息
   message: string;
   hoverMessage: string;
-  migrationGuide: string;
+  upgradeGuide: string;
 
   // 快速修复
   quickFix?: QuickFixProvider;
@@ -46,13 +46,13 @@ export interface ASTContext {
 /**
  * 配置定义
  */
-export interface MigrationConfig {
+export interface UpgradeConfig {
   version: string;
   frameworkName: {
     old: string;
     new: string;
   };
-  rules: MigrationRule[];
+  rules: UpgradeRule[];
   ignorePatterns?: string[];
   customRules?: string[]; // 自定义规则文件路径
 }

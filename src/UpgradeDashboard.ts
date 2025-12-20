@@ -9,11 +9,11 @@ export class UpgradeDashboard {
     bySeverity: Map<string, number>;
     fileList: Array<{ file: string; issues: number }>;
   } = {
-      totalIssues: 0,
-      byCategory: new Map(),
-      bySeverity: new Map(),
-      fileList: [],
-    };
+    totalIssues: 0,
+    byCategory: new Map(),
+    bySeverity: new Map(),
+    fileList: [],
+  };
 
   /**
    * 显示升级仪表板
@@ -54,7 +54,7 @@ export class UpgradeDashboard {
 
     diagnostics.forEach((diags, file) => {
       this.statistics.totalIssues += diags.length;
-
+      
       if (diags.length > 0) {
         this.statistics.fileList.push({
           file: file.split('/').pop() || file,

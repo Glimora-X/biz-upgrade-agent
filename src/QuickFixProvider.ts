@@ -1,16 +1,16 @@
 import * as vscode from 'vscode';
 import { ASTAnalyzer } from "./ASTAnalyzer";
-import { ASTContext, MigrationRule } from "./interface";
+import { ASTContext, UpgradeRule } from "./interface";
 
 export class QuickFixProvider implements vscode.CodeActionProvider {
-  private rules: MigrationRule[] = [];
+  private rules: UpgradeRule[] = [];
   private astAnalyzer: ASTAnalyzer;
 
   constructor(astAnalyzer: ASTAnalyzer) {
     this.astAnalyzer = astAnalyzer;
   }
 
-  setRules(rules: MigrationRule[]) {
+  setRules(rules: UpgradeRule[]) {
     this.rules = rules;
   }
 
@@ -23,7 +23,7 @@ export class QuickFixProvider implements vscode.CodeActionProvider {
     const actions: vscode.CodeAction[] = [];
 
     for (const diagnostic of context.diagnostics) {
-      if (diagnostic.source !== 'biz-framework-migration') continue;
+      if (diagnostic.source !== 'biz-framework-upgrade') continue;
 
       const rule = this.rules.find(r => r.id === diagnostic.code);
       if (!rule || !rule.quickFix) continue;
@@ -87,7 +87,7 @@ export class QuickFixProvider implements vscode.CodeActionProvider {
   // 添加智能转换方法
   private smartTransform(
     code: string,
-    rule: MigrationRule,
+    rule: UpgradeRule,
     context: ASTContext
   ): string {
     // 基于 AST 上下文的智能转换

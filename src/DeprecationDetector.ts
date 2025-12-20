@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import { ASTAnalyzer } from './ASTAnalyzer';
-import { MigrationRule } from './interface';
+import { UpgradeRule } from './interface';
 import { minimatch } from 'minimatch';
 
 export class DeprecationDetector {
   private diagnosticCollection: vscode.DiagnosticCollection;
   private astAnalyzer: ASTAnalyzer;
-  private rules: MigrationRule[] = [];
+  private rules: UpgradeRule[] = [];
   private workspaceRoot: string = '';
 
   constructor(astAnalyzer: ASTAnalyzer) {
@@ -18,7 +18,7 @@ export class DeprecationDetector {
     this.workspaceRoot = root;
   }
 
-  setRules(rules: MigrationRule[]) {
+  setRules(rules: UpgradeRule[]) {
     this.rules = rules;
   }
 
@@ -78,7 +78,7 @@ export class DeprecationDetector {
   /**
    * 检查文件是否应该被规则忽略
    */
-  private shouldIgnoreFile(filePath: string, rule: MigrationRule): boolean {
+  private shouldIgnoreFile(filePath: string, rule: UpgradeRule): boolean {
     if (!rule.ignorePatterns || rule.ignorePatterns.length === 0) {
       return false;
     }
@@ -109,7 +109,7 @@ export class DeprecationDetector {
     return matches;
   }
 
-  private createDiagnostic(range: vscode.Range, rule: MigrationRule): vscode.Diagnostic {
+  private createDiagnostic(range: vscode.Range, rule: UpgradeRule): vscode.Diagnostic {
     const severity = {
       error: vscode.DiagnosticSeverity.Error,
       warning: vscode.DiagnosticSeverity.Warning,
@@ -123,7 +123,7 @@ export class DeprecationDetector {
     );
 
     diagnostic.code = rule.id;
-    diagnostic.source = 'biz-framework-migration';
+    diagnostic.source = 'biz-framework-upgrade';
 
     return diagnostic;
   }

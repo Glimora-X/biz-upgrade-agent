@@ -1,26 +1,26 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { MigrationConfig } from './interface';
+import { UpgradeConfig } from './interface';
 
 export class ConfigLoader {
-  private config: MigrationConfig | null = null;
+  private config: UpgradeConfig | null = null;
   private watchers: vscode.FileSystemWatcher[] = [];
-  private onConfigChangeEmitter = new vscode.EventEmitter<MigrationConfig>();
-  
+  private onConfigChangeEmitter = new vscode.EventEmitter<UpgradeConfig>();
+
   readonly onConfigChange = this.onConfigChangeEmitter.event;
 
   /**
    * 加载配置（支持多来源）
    */
-  async loadConfig(workspaceRoot: string): Promise<MigrationConfig> {
+  async loadConfig(workspaceRoot: string): Promise<UpgradeConfig> {
     const sources = [
-      path.join(workspaceRoot, '.migration', 'rules.json'),
-      path.join(workspaceRoot, 'migration.config.json'),
+      path.join(workspaceRoot, '.upgrade', 'rules.json'),
+      path.join(workspaceRoot, 'upgrade.config.json'),
       this.getVSCodeSettingsConfig(),
     ];
 
-    let config: MigrationConfig | null = null;
+    let config: UpgradeConfig | null = null;
 
     for (const source of sources) {
       if (typeof source === 'string' && fs.existsSync(source)) {
@@ -55,17 +55,17 @@ export class ConfigLoader {
    */
   watchConfig(workspaceRoot: string) {
     const patterns = [
-      new vscode.RelativePattern(workspaceRoot, '.migration/**/*.json'),
-      new vscode.RelativePattern(workspaceRoot, 'migration.config.json'),
+      new vscode.RelativePattern(workspaceRoot, '.upgrade/**/*.json'),
+      new vscode.RelativePattern(workspaceRoot, 'upgrade.config.json'),
     ];
 
     patterns.forEach(pattern => {
       const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-      
+
       watcher.onDidChange(() => this.reloadConfig(workspaceRoot));
       watcher.onDidCreate(() => this.reloadConfig(workspaceRoot));
       watcher.onDidDelete(() => this.reloadConfig(workspaceRoot));
-      
+
       this.watchers.push(watcher);
     });
   }
@@ -73,17 +73,17 @@ export class ConfigLoader {
   private async reloadConfig(workspaceRoot: string) {
     const newConfig = await this.loadConfig(workspaceRoot);
     this.onConfigChangeEmitter.fire(newConfig);
-    vscode.window.showInformationMessage('迁移规则已更新');
+    vscode.window.showInformationMessage('升级规则已更新');
   }
 
-  private getVSCodeSettingsConfig(): Partial<MigrationConfig> | null {
-    const config = vscode.workspace.getConfiguration('bizFrameworkMigration');
+  private getVSCodeSettingsConfig(): Partial<UpgradeConfig> | null {
+    const config = vscode.workspace.getConfiguration('bizFrameworkUpgrade');
     return config.get('rules') || null;
   }
 
-  private mergeConfig(base: MigrationConfig | null, override: Partial<MigrationConfig>): MigrationConfig {
-    if (!base) return override as MigrationConfig;
-    
+  private mergeConfig(base: UpgradeConfig | null, override: Partial<UpgradeConfig>): UpgradeConfig {
+    if (!base) return override as UpgradeConfig;
+
     return {
       ...base,
       ...override,
@@ -91,7 +91,7 @@ export class ConfigLoader {
     };
   }
 
-  private getDefaultConfig(): MigrationConfig {
+  private getDefaultConfig(): UpgradeConfig {
     return {
       version: '1.0.0',
       frameworkName: {

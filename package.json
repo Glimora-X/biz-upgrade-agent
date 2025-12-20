@@ -1,8 +1,8 @@
 {
   "name": "biz-upgrade-helper",
   "displayName": "biz框架升级助手: 从 biz-framework 到 biz-core",
-  "description": "帮助开发者平滑迁移框架版本",
-  "version": "5.0.0",
+  "description": "app-service 升级助手，帮助开发者平滑过渡到app-service-plus",
+  "version": "6.0.0",
   "publisher": "GlimoraX",
   "icon": "images/icon.png",
   "repository": {
@@ -34,47 +34,42 @@
   "contributes": {
     "commands": [
       {
-        "command": "bizHelper.refreshRules",
-        "title": "刷新迁移规则",
+        "command": "bizHelper.resumeQuickUpgrade",
+        "title": "继续升级流程",
         "category": "Biz Helper",
-        "icon": "$(refresh)"
+        "icon": "$(debug-continue)"
       },
       {
         "command": "bizHelper.quickUpgrade",
         "title": "一键代码升级",
         "category": "Biz Helper",
         "icon": "$(rocket)"
-      },
-      {
-        "command": "bizHelper.resumeQuickUpgrade",
-        "title": "继续升级流程",
-        "category": "Biz Helper",
-        "icon": "$(debug-continue)"
       }
+      
     ],
     "configuration": {
       "title": "Biz Framework Upgrade",
       "properties": {
-        "bizFrameworkMigration.enabled": {
+        "bizFrameworkUpgrade.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "启用/禁用迁移助手"
+          "description": "启用/禁用升级助手"
         },
-        "bizFrameworkMigration.autoScan": {
+        "bizFrameworkUpgrade.autoScan": {
           "type": "boolean",
           "default": true,
           "description": "自动扫描打开的文件"
         },
-        "bizFrameworkMigration.showDashboardOnStartup": {
+        "bizFrameworkUpgrade.showDashboardOnStartup": {
           "type": "boolean",
           "default": false,
-          "description": "启动时显示迁移仪表板"
+          "description": "启动时显示升级仪表板"
         },
-        "bizFrameworkMigration.rulePaths": {
+        "bizFrameworkUpgrade.rulePaths": {
           "type": "array",
           "default": [
-            ".migration/rules.json",
-            "migration.config.json"
+            ".upgrade/rules.json",
+            "upgrade.config.json"
           ],
           "description": "规则文件路径"
         }

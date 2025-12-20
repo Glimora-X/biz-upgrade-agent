@@ -159,9 +159,19 @@ export class QuickUpgradeManager {
 
     const featureBranch = `upgrade/${env}-${suffix.trim()}`;
 
+    // 步骤3：确认目标分支
+    const targetBranchInput = await vscode.window.showInputBox({
+      prompt: `请输入目标分支名称`,
+      placeHolder: `请输入目标分支名称`,
+      value: targetBranch,
+      title: '快速升级 - 步骤 3/3',
+    });
+
+    if (!targetBranchInput) return;
+
     return {
       env,
-      targetBranch,
+      targetBranch: targetBranchInput,
       sourceBranch,
       featureBranch,
     };
@@ -218,7 +228,7 @@ export class QuickUpgradeManager {
         command: () => this.execInTerminalAndWait('node ./scripts/upgrade-bizcore.js', workspaceRoot, '升级脚本'),
       },
 
-     
+
       // 6. 提交特性分支代码
       {
         kind: 'command',
@@ -232,9 +242,9 @@ export class QuickUpgradeManager {
         title: `推送特性分支到 origin/${featureBranch}`,
         command: () => this.pushFeatureBranch(featureBranch, workspaceRoot),
       },
-      
-       // 10. 合并前确认（二次确认）
-       {
+
+      // 10. 合并前确认（二次确认）
+      {
         kind: 'pause',
         title: `⚠️  即将合并到目标分支 ${targetBranch}`,
         detail: `请确认以下信息：
@@ -261,7 +271,7 @@ export class QuickUpgradeManager {
         command: `git pull origin ${targetBranch}`,
       },
 
-     
+
 
       // 11. 合并特性分支到目标分支（自动检测冲突）
       {
@@ -269,8 +279,8 @@ export class QuickUpgradeManager {
         title: `合并 ${featureBranch} 到 ${targetBranch}`,
         command: () => this.runWithConflictSupport(`git merge ${featureBranch}`, workspaceRoot),
       },
-       // 5. 运行单测（可选）
-       {
+      // 5. 运行单测（可选）
+      {
         kind: 'command',
         title: `运行 ${targetBranch}分支的单测 yarn test`,
         command: () => this.runOptionalTest(workspaceRoot),
@@ -286,7 +296,7 @@ export class QuickUpgradeManager {
 
       // 13. 完成
       {
-        kind: 'pause',
+        kind: 'info',
         title: '🎉 快速升级流程完成',
         detail: `后续操作：
 1. 部署 ${env === 'test' ? 'pre-test' : 'pre-inte'} 环境
@@ -668,7 +678,7 @@ export class QuickUpgradeManager {
   private async runOptionalTest(cwd: string) {
     // 使用模态对话框，确保用户能看到并做出选择
     const choice = await vscode.window.showInformationMessage(
-      '是否运行 yarn test？\n\n单测通常需要 1-10 分钟，建议在升级后运行以验证代码正确性。',
+      '是否在${targetBranch}分支的运行单测？\n\n单测通常需要 1-10 分钟，建议在升级后运行以验证代码正确性。',
       { modal: true },
       '运行',
       '跳过'

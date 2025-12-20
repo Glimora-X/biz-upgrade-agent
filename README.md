@@ -1,20 +1,23 @@
 # Biz 框架升级助手
 
-帮助开发者从 `biz-framework` 平滑迁移到 `biz-core` 的 VS Code 智能插件。
+帮助开发者从 `biz-framework` 平滑升级到 `biz-core` 的 VS Code 智能插件。
 
 ## ✨ 功能特性
 
 - **一键代码升级** - 自动化 Git 工作流，支持 test/inte 环境的快速升级流程
 - **实时检测** - 自动扫描代码中的废弃 API 和过时写法，支持简单模式匹配和 AST 复杂规则
-- **智能提示** - 悬停显示详细的迁移指南和代码示例
+- **智能提示** - 悬停显示详细的升级指南和代码示例
 - **快速修复** - 一键自动替换为新框架写法，支持基于 AST 的智能转换
 - **自定义规则** - 支持多来源配置、自定义规则文件和规则级别的忽略模式
 - **配置热更新** - 修改配置文件后自动重新加载规则，无需重启
 
-
 ## 📦 安装
 
-在 VS Code 扩展市场搜索 `biz框架升级助手` 或通过命令行安装：
+### 在 Cursor / VS Code / Trae / Kiro等IDE中通过以下方式安装：
+
+Extensions → Install from VSIX → 选择文件: .upgrade/biz-upgrade-helper-X.X.X.vsix 
+
+### 在 VS Code 扩展市场搜索 `biz框架升级助手` 或通过命令行安装：
 
 ```bash
 code --install-extension GlimoraX.biz-upgrade-helper
@@ -61,13 +64,13 @@ code --install-extension GlimoraX.biz-upgrade-helper
 
 插件支持多个配置来源，按以下优先级加载（后面的会合并前面的）：
 
-1. `.migration/rules.json` - 项目级规则文件
-2. `migration.config.json` - 项目根目录配置文件
-3. VS Code 设置中的 `bizFrameworkMigration.rules`
+1. `.upgrade/rules.json` - 项目级规则文件
+2. `upgrade.config.json` - 项目根目录配置文件
+3. VS Code 设置中的 `bizFrameworkUpgrade.rules`
 
 ### 配置示例
 
-在项目根目录创建 `migration.config.json`：
+在项目根目录创建 `upgrade.config.json`：
 
 ```json
 {
@@ -77,7 +80,7 @@ code --install-extension GlimoraX.biz-upgrade-helper
     "new": "biz-core"
   },
   "ignorePatterns": ["**/node_modules/**", "**/dist/**", "**/*.test.ts"],
-  "customRules": [".migration/custom-rules.js"],
+  "customRules": [".upgrade/custom-rules.js"],
   "rules": [
     {
       "id": "import-statement-change",
@@ -87,7 +90,7 @@ code --install-extension GlimoraX.biz-upgrade-helper
       "newPattern": "from 'biz-core'",
       "message": "请使用新的导入路径 'biz-core'",
       "hoverMessage": "biz-framework 已升级为 biz-core",
-      "migrationGuide": "将所有 import ... from 'biz-framework' 更改为 import ... from 'biz-core'",
+      "upgradeGuide": "将所有 import ... from 'biz-framework' 更改为 import ... from 'biz-core'",
       "quickFix": {
         "title": "更新为 biz-core 导入",
         "transform": "code.replace(/from ['\"]biz-framework['\"]/g, \"from 'biz-core'\")"
@@ -114,7 +117,7 @@ code --install-extension GlimoraX.biz-upgrade-helper
 - `astMatcher` - AST 匹配函数（用于复杂规则，需在自定义规则文件中定义）
 - `message` - 诊断消息
 - `hoverMessage` - 悬停提示消息
-- `migrationGuide` - 迁移指南
+- `upgradeGuide` - 升级指南
 - `quickFix` - 快速修复配置
   - `title` - 修复操作标题
   - `transform` - 转换表达式（字符串，使用 `code` 变量）
@@ -138,7 +141,7 @@ code --install-extension GlimoraX.biz-upgrade-helper
 可以通过 `customRules` 字段引用 JavaScript 模块文件，定义复杂的 AST 匹配规则：
 
 ```javascript
-// .migration/custom-rules.js
+// .upgrade/custom-rules.js
 module.exports = [
   {
     id: "complex-ast-rule",
@@ -153,7 +156,7 @@ module.exports = [
     },
     message: "检测到废弃方法调用",
     hoverMessage: "此方法已废弃",
-    migrationGuide: "使用新方法替代",
+    upgradeGuide: "使用新方法替代",
     quickFix: {
       title: "替换为新方法",
       transform: (code) => code.replace(/deprecatedMethod/g, "newMethod"),
@@ -166,12 +169,12 @@ module.exports = [
 
 ```json
 {
-  "bizFrameworkMigration.enabled": true,
-  "bizFrameworkMigration.autoScan": true,
-  "bizFrameworkMigration.showDashboardOnStartup": false,
-  "bizFrameworkMigration.rulePaths": [
-    ".migration/rules.json",
-    "migration.config.json"
+  "bizFrameworkUpgrade.enabled": true,
+  "bizFrameworkUpgrade.autoScan": true,
+  "bizFrameworkUpgrade.showDashboardOnStartup": false,
+  "bizFrameworkUpgrade.rulePaths": [
+    ".upgrade/rules.json",
+    "upgrade.config.json"
   ]
 }
 ```
