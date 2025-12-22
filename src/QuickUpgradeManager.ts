@@ -286,7 +286,14 @@ export class QuickUpgradeManager {
         command: `git push origin ${targetBranch}`,
       },
 
-      // 13. 完成
+      // 13. 删除临时特性分支
+      {
+        kind: 'command',
+        title: `删除临时特性分支 ${featureBranch}`,
+        command: () => this.deleteFeatureBranch(featureBranch, workspaceRoot),
+      },
+
+      // 14. 完成
       {
         kind: 'info',
         title: '🎉 快速升级流程完成',
@@ -661,6 +668,20 @@ export class QuickUpgradeManager {
       // 分支不存在，基于基础分支创建
       this.output.appendLine(`✓ 创建新特性分支 ${featureBranch}`);
       await this.execLogged(`git checkout -b ${featureBranch} ${baseBranch}`, cwd);
+    }
+  }
+
+  /**
+   * 删除临时特性分支
+   */
+  private async deleteFeatureBranch(featureBranch: string, cwd: string) {
+    try {
+      // 删除本地特性分支（-D 强制删除，因为已经合并过了）
+      await this.execLogged(`git branch -D ${featureBranch}`, cwd);
+      this.output.appendLine(`✅ 临时特性分支 ${featureBranch} 已删除\n`);
+    } catch (error) {
+      // 删除失败不中断流程，只输出警告
+      this.output.appendLine(`⚠️  删除特性分支失败，可稍后手动删除: git branch -D ${featureBranch}\n`);
     }
   }
 

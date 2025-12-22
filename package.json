@@ -2,7 +2,7 @@
   "name": "biz-upgrade-helper",
   "displayName": "biz框架升级助手: 从 biz-framework 到 biz-core",
   "description": "app-service 升级助手，帮助开发者平滑过渡到app-service-plus",
-  "version": "10.0.0",
+  "version": "10.1.0",
   "publisher": "GlimoraX",
   "icon": "images/icon.png",
   "repository": {
