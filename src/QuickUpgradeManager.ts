@@ -698,24 +698,61 @@ export class QuickUpgradeManager {
     );
 
     if (choice === '运行') {
+      await this.runTestWithRetry(cwd);
+    } else {
+      this.output.appendLine('⏭️  跳过单测\n');
+    }
+  }
+
+  /**
+   * 运行单测（支持失败后重试）
+   */
+  private async runTestWithRetry(cwd: string) {
+    let testPassed = false;
+
+    while (!testPassed) {
       this.output.appendLine('🧪 开始运行单测...\n');
       try {
         await this.execInTerminalAndWait('yarn test', cwd, '单元测试');
         this.output.appendLine('✅ 单测完成\n');
+        testPassed = true;
       } catch (error) {
         this.output.appendLine('⚠️  单测失败\n');
-        const action = await vscode.window.showErrorMessage(
-          '单测执行失败，是否继续后续步骤？',
+
+        // 单测失败，暂停流程，让用户修复后继续
+        await this.waitForContinue({
+          kind: 'pause',
+          title: '⚠️  单测执行失败，需要修复',
+          detail: `单测失败处理方式：
+(1) 请在终端查看失败原因
+(2) 修复相关代码或测试文件
+(3) 点击左下角"继续升级"按钮重新运行单测
+(4) 如果确认单测问题可忽略，请选择"跳过单测"
+
+注意：修复完成后点击"继续"按钮将重新运行单测验证`,
+        });
+
+        // 用户点击继续后，询问是重新运行还是跳过
+        const action = await vscode.window.showInformationMessage(
+          '请选择下一步操作',
           { modal: true },
-          '继续',
+          '重新运行单测',
+          '跳过单测继续',
           '中止升级'
         );
-        if (action !== '继续') {
+
+        if (action === '重新运行单测') {
+          // 继续循环，重新运行单测
+          continue;
+        } else if (action === '跳过单测继续') {
+          // 跳过单测，标记为通过并退出循环
+          this.output.appendLine('⏭️  用户选择跳过单测，继续后续流程\n');
+          testPassed = true;
+        } else {
+          // 中止升级
           throw new Error('单测失败，用户中止流程');
         }
       }
-    } else {
-      this.output.appendLine('⏭️  跳过单测\n');
     }
   }
 
@@ -779,7 +816,7 @@ export class QuickUpgradeManager {
 
     // 提交变更
     try {
-      await this.execLogged(`git commit -m "${commitMessage.replace(/"/g, '\\"')}"`, cwd);
+      await this.execLogged(`git commit -m "${commitMessage.replace(/"/g, '\\"')}" --no-verify`, cwd);
       this.output.appendLine('✅ 变更已提交\n');
     } catch (error) {
       // Git 提交失败，但不终止流程
@@ -870,21 +907,32 @@ export class QuickUpgradeManager {
    */
   resolvePending() {
     if (this.pendingResolve) {
-      this.output.appendLine('✅ 继续执行升级流程\n');
-      this.pendingResolve();
+      this.output.appendLine('✅ 用户点击继续，恢复升级流程\n');
+      this.output.show(true);
+
+      // 显示成功消息
+      vscode.window.showInformationMessage('✅ 升级流程已恢复，继续执行...');
+
+      // 执行 resolve
+      const resolve = this.pendingResolve;
+
+      // 清理状态栏按钮
+      if (this.currentStatusBarItem) {
+        this.currentStatusBarItem.dispose();
+        this.currentStatusBarItem = null;
+      }
+
+      // 重置状态
+      this.pendingResolve = null;
+      this.pendingReject = null;
+      this.pendingMessage = null;
+
+      // 最后调用 resolve（确保状态已清理）
+      resolve();
     } else {
-      vscode.window.showWarningMessage('当前没有暂停的升级流程');
+      vscode.window.showWarningMessage('⚠️ 当前没有暂停的升级流程');
+      this.output.appendLine('⚠️ resolvePending 被调用，但没有待处理的流程\n');
     }
-
-    // 清理状态栏按钮
-    if (this.currentStatusBarItem) {
-      this.currentStatusBarItem.dispose();
-      this.currentStatusBarItem = null;
-    }
-
-    this.pendingResolve = null;
-    this.pendingReject = null;
-    this.pendingMessage = null;
   }
 
   /**
@@ -892,19 +940,29 @@ export class QuickUpgradeManager {
    */
   rejectPending(reason?: any) {
     if (this.pendingReject) {
-      this.output.appendLine('❌ 升级流程已取消\n');
-      this.pendingReject(reason);
-    }
+      const errorMsg = reason instanceof Error ? reason.message : String(reason || '用户取消');
+      this.output.appendLine(`❌ 升级流程已取消: ${errorMsg}\n`);
+      this.output.show(true);
 
-    // 清理状态栏按钮
-    if (this.currentStatusBarItem) {
-      this.currentStatusBarItem.dispose();
-      this.currentStatusBarItem = null;
-    }
+      // 执行 reject
+      const reject = this.pendingReject;
 
-    this.pendingResolve = null;
-    this.pendingReject = null;
-    this.pendingMessage = null;
+      // 清理状态栏按钮
+      if (this.currentStatusBarItem) {
+        this.currentStatusBarItem.dispose();
+        this.currentStatusBarItem = null;
+      }
+
+      // 重置状态
+      this.pendingResolve = null;
+      this.pendingReject = null;
+      this.pendingMessage = null;
+
+      // 最后调用 reject（确保状态已清理）
+      reject(reason);
+    } else {
+      this.output.appendLine('⚠️ rejectPending 被调用，但没有待处理的流程\n');
+    }
   }
 
   /**
