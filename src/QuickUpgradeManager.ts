@@ -771,7 +771,7 @@ export class QuickUpgradeManager {
     await this.execLogged('git add .', cwd);
 
     // 让用户填写提交信息
-    const defaultMessage = `upgrade(CPYF-11630):${this.getDateTag(true)} ${sourceBranch} 分支代码升级 `;
+    const defaultMessage = `upgrade(CPYF-12595):${this.getDateTag(true)} ${sourceBranch} 分支代码升级 `;
     const commitMessage = await vscode.window.showInputBox({
       prompt: '请输入提交信息（Commit Message）',
       placeHolder: '例如：chore: upgrade from plus-test-250918',
