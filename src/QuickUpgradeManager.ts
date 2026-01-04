@@ -221,13 +221,19 @@ export class QuickUpgradeManager {
         command: () => this.runWithConflictSupport(`git pull origin ${sourceBranch}`, workspaceRoot),
       },
 
-      // 4. 执行升级脚本（自动等待完成，保持彩色输出）
+      // 4. 执行升级脚本（支持失败后重试）
       {
         kind: 'command',
-        title: '正在执行升级脚本与单测验证，请在终端中查看进度...',
-        command: () => this.execInTerminalAndWait('node ./scripts/upgrade-bizcore.js', workspaceRoot, '升级脚本'),
+        title: '正在执行升级脚本，请在终端中查看进度...',
+        command: () => this.runUpgradeScriptWithRetry(workspaceRoot),
       },
 
+      // 5. 运行特性分支的单测（可选，支持失败后重试）
+      {
+        kind: 'command',
+        title: `运行特性分支 ${featureBranch} 的单测验证`,
+        command: () => this.runFeatureBranchTest(workspaceRoot),
+      },
 
       // 6. 提交特性分支代码
       {
@@ -686,7 +692,106 @@ export class QuickUpgradeManager {
   }
 
   /**
-   * 运行单测（可选）
+   * 通用重试处理函数
+   * @param config 重试配置
+   */
+  private async executeWithRetry(config: {
+    taskName: string;              // 任务名称（如"升级脚本"、"单测"）
+    taskAction: () => Promise<void>; // 要执行的任务
+    startIcon: string;             // 开始图标
+    successIcon: string;           // 成功图标
+    failIcon: string;              // 失败图标
+    failureTitle: string;          // 失败标题
+    failureDetail: string;         // 失败详情
+    retryButtonText: string;       // 重试按钮文本
+    skipButtonText: string;        // 跳过按钮文本
+  }) {
+    let taskPassed = false;
+
+    while (!taskPassed) {
+      this.output.appendLine(`${config.startIcon} 开始执行${config.taskName}...\n`);
+      try {
+        await config.taskAction();
+        this.output.appendLine(`${config.successIcon} ${config.taskName}执行完成\n`);
+        taskPassed = true;
+      } catch (error) {
+        this.output.appendLine(`${config.failIcon} ${config.taskName}执行失败\n`);
+
+        // 任务失败，暂停流程，让用户修复后继续
+        await this.waitForContinue({
+          kind: 'pause',
+          title: config.failureTitle,
+          detail: config.failureDetail,
+        });
+
+        // 用户点击继续后，询问是重新运行还是跳过
+        const action = await vscode.window.showInformationMessage(
+          '请选择下一步操作',
+          { modal: true },
+          config.retryButtonText,
+          config.skipButtonText,
+          '中止升级'
+        );
+
+        if (action === config.retryButtonText) {
+          // 继续循环，重新运行任务
+          continue;
+        } else if (action === config.skipButtonText) {
+          // 跳过任务，标记为通过并退出循环
+          this.output.appendLine(`⏭️  用户选择跳过${config.taskName}，继续后续流程\n`);
+          taskPassed = true;
+        } else {
+          // 中止升级
+          throw new Error(`${config.taskName}失败，用户中止流程`);
+        }
+      }
+    }
+  }
+
+  /**
+   * 运行升级脚本（支持失败后重试）
+   */
+  private async runUpgradeScriptWithRetry(cwd: string) {
+    await this.executeWithRetry({
+      taskName: '升级脚本',
+      taskAction: () => this.execInTerminalAndWait('node ./scripts/upgrade-bizcore.js', cwd, '升级脚本'),
+      startIcon: '🔄',
+      successIcon: '✅',
+      failIcon: '⚠️',
+      failureTitle: '⚠️  升级脚本执行失败，需要修复',
+      failureDetail: `升级脚本失败处理方式：
+(1) 请在终端查看失败原因和错误信息
+(2) 根据提示修复代码或配置文件
+(3) 点击左下角"继续升级"按钮重新运行升级脚本
+(4) 如果确认脚本问题可忽略，请选择"跳过脚本继续"
+
+注意：修复完成后点击"继续"按钮将重新运行升级脚本`,
+      retryButtonText: '重新运行升级脚本',
+      skipButtonText: '跳过脚本继续',
+    });
+  }
+
+  /**
+   * 运行特性分支的单测（可选，支持失败后重试）
+   */
+  private async runFeatureBranchTest(cwd: string) {
+    // 使用模态对话框，确保用户能看到并做出选择
+    const choice = await vscode.window.showInformationMessage(
+      `升级脚本已完成，是否在特性分支运行单测验证？\n\n单测通常需要 1-10 分钟，建议在提交前运行以验证升级后的代码正确性。`,
+      { modal: true },
+      '运行',
+      '跳过'
+    );
+
+    if (choice === '运行') {
+      await this.runTestWithRetry(cwd, '特性分支');
+    } else {
+      this.output.appendLine('⏭️  跳过特性分支单测\n');
+    }
+  }
+
+  /**
+   * 运行目标分支的单测（可选）
    */
   private async runOptionalTest(cwd: string) {
     // 使用模态对话框，确保用户能看到并做出选择
@@ -698,62 +803,38 @@ export class QuickUpgradeManager {
     );
 
     if (choice === '运行') {
-      await this.runTestWithRetry(cwd);
+      await this.runTestWithRetry(cwd, '目标分支');
     } else {
-      this.output.appendLine('⏭️  跳过单测\n');
+      this.output.appendLine('⏭️  跳过目标分支单测\n');
     }
   }
 
   /**
    * 运行单测（支持失败后重试）
+   * @param cwd 工作目录
+   * @param branchType 分支类型（用于提示信息），默认为空
    */
-  private async runTestWithRetry(cwd: string) {
-    let testPassed = false;
+  private async runTestWithRetry(cwd: string, branchType: string = '') {
+    const branchPrefix = branchType ? `${branchType}` : '';
+    const taskName = branchPrefix ? `${branchPrefix}单测` : '单测';
 
-    while (!testPassed) {
-      this.output.appendLine('🧪 开始运行单测...\n');
-      try {
-        await this.execInTerminalAndWait('yarn test', cwd, '单元测试');
-        this.output.appendLine('✅ 单测完成\n');
-        testPassed = true;
-      } catch (error) {
-        this.output.appendLine('⚠️  单测失败\n');
-
-        // 单测失败，暂停流程，让用户修复后继续
-        await this.waitForContinue({
-          kind: 'pause',
-          title: '⚠️  单测执行失败，需要修复',
-          detail: `单测失败处理方式：
+    await this.executeWithRetry({
+      taskName,
+      taskAction: () => this.execInTerminalAndWait('yarn test', cwd, `${branchPrefix}单元测试`),
+      startIcon: '🧪',
+      successIcon: '✅',
+      failIcon: '⚠️',
+      failureTitle: `⚠️  ${branchPrefix}单测执行失败，需要修复`,
+      failureDetail: `单测失败处理方式：
 (1) 请在终端查看失败原因
 (2) 修复相关代码或测试文件
 (3) 点击左下角"继续升级"按钮重新运行单测
 (4) 如果确认单测问题可忽略，请选择"跳过单测"
 
 注意：修复完成后点击"继续"按钮将重新运行单测验证`,
-        });
-
-        // 用户点击继续后，询问是重新运行还是跳过
-        const action = await vscode.window.showInformationMessage(
-          '请选择下一步操作',
-          { modal: true },
-          '重新运行单测',
-          '跳过单测继续',
-          '中止升级'
-        );
-
-        if (action === '重新运行单测') {
-          // 继续循环，重新运行单测
-          continue;
-        } else if (action === '跳过单测继续') {
-          // 跳过单测，标记为通过并退出循环
-          this.output.appendLine('⏭️  用户选择跳过单测，继续后续流程\n');
-          testPassed = true;
-        } else {
-          // 中止升级
-          throw new Error('单测失败，用户中止流程');
-        }
-      }
-    }
+      retryButtonText: '重新运行单测',
+      skipButtonText: '跳过单测继续',
+    });
   }
 
   /**
