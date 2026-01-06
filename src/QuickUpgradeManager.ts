@@ -228,7 +228,7 @@ export class QuickUpgradeManager {
         command: () => this.runUpgradeScriptWithRetry(workspaceRoot),
       },
 
-      // 5. 运行特性分支的单测（可选，支持失败后重试）
+      // 5. 运行特性分支的单测（支持失败后重试）
       {
         kind: 'command',
         title: `运行特性分支 ${featureBranch} 的单测验证`,
@@ -277,14 +277,6 @@ export class QuickUpgradeManager {
         title: `合并 ${featureBranch} 到 ${targetBranch}`,
         command: () => this.runWithConflictSupport(`git merge ${featureBranch}`, workspaceRoot),
       },
-      // 5. 运行单测（可选）
-      {
-        kind: 'command',
-        title: `运行 ${targetBranch}分支的单测 yarn test`,
-        command: () => this.runOptionalTest(workspaceRoot),
-      },
-
-
       // 12. 推送目标分支
       {
         kind: 'command',
@@ -776,37 +768,15 @@ export class QuickUpgradeManager {
    */
   private async runFeatureBranchTest(cwd: string) {
     // 使用模态对话框，确保用户能看到并做出选择
-    const choice = await vscode.window.showInformationMessage(
-      `升级脚本已完成，是否在特性分支运行单测验证？\n\n单测通常需要 1-10 分钟，建议在提交前运行以验证升级后的代码正确性。`,
-      { modal: true },
-      '运行',
-      '跳过'
-    );
+    // const choice = await vscode.window.showInformationMessage(
+    //   `升级脚本已完成，是否在特性分支运行单测验证？\n\n单测通常需要 1-10 分钟，建议在提交前运行以验证升级后的代码正确性。`,
+    //   { modal: true },
+    //   '运行',
+    //   '跳过'
+    // );
+    this.output.appendLine('升级脚本已完成，将在特性分支运行单测验证？\n\n单测通常需要 1-10 分钟，请耐心等待...');
 
-    if (choice === '运行') {
-      await this.runTestWithRetry(cwd, '特性分支');
-    } else {
-      this.output.appendLine('⏭️  跳过特性分支单测\n');
-    }
-  }
-
-  /**
-   * 运行目标分支的单测（可选）
-   */
-  private async runOptionalTest(cwd: string) {
-    // 使用模态对话框，确保用户能看到并做出选择
-    const choice = await vscode.window.showInformationMessage(
-      `代码已合并完成，是否在目标分支运行单测？\n\n单测通常需要 1-10 分钟，建议在升级后运行以验证代码正确性。`,
-      { modal: true },
-      '运行',
-      '跳过'
-    );
-
-    if (choice === '运行') {
-      await this.runTestWithRetry(cwd, '目标分支');
-    } else {
-      this.output.appendLine('⏭️  跳过目标分支单测\n');
-    }
+    await this.runTestWithRetry(cwd, '特性分支');
   }
 
   /**
