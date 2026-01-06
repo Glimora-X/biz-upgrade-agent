@@ -214,6 +214,18 @@ export class QuickUpgradeManager {
         command: () => this.checkoutFeature(featureBranch, targetBranch, workspaceRoot),
       },
 
+      // 2.5. 从 Service 仓库更新特性分支
+      {
+        kind: 'command',
+        title: `更新特性分支 ${featureBranch} - (从 Service 仓库)更新源码`,
+        command: () => this.runWithConflictSupport(
+          `git pull https://gitlab.rd.chanjet.com/cc_web/cc-front-biz-app-service.git ${targetBranch}`,
+          workspaceRoot
+        ),
+      },
+
+
+
       // 3. 合入源代码分支（自动检测冲突，有冲突时会自动暂停）
       {
         kind: 'command',
@@ -659,9 +671,13 @@ export class QuickUpgradeManager {
     try {
       // 检查分支是否存在
       await this.execLogged(`git rev-parse --verify ${featureBranch}`, cwd);
-      // 分支存在，切换过去
-      this.output.appendLine(`✓ 特性分支 ${featureBranch} 已存在`);
-      await this.execLogged(`git checkout ${featureBranch}`, cwd);
+
+      // 分支存在，删除并重新创建
+      this.output.appendLine(`✓ 特性分支 ${featureBranch} 已存在，正在重新创建...`);
+      // 强制删除旧分支
+      await this.execLogged(`git branch -D ${featureBranch}`, cwd);
+      // 重新基于 baseBranch 创建
+      await this.execLogged(`git checkout -b ${featureBranch} ${baseBranch}`, cwd);
     } catch {
       // 分支不存在，基于基础分支创建
       this.output.appendLine(`✓ 创建新特性分支 ${featureBranch}`);
