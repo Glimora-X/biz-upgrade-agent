@@ -17,7 +17,6 @@ interface SyncStep {
 interface QuickUpgradeParams {
   env: 'test' | 'inte';
   targetBranch: string;
-  sourceBranch: string;
   featureBranch: string;
 }
 
@@ -127,15 +126,13 @@ export class QuickUpgradeManager {
     const branchMap = {
       test: {
         targetBranch: 'test-220915',
-        sourceBranch: 'plus-upgrade-test',
       },
       inte: {
         targetBranch: 'sprint-251225',
-        sourceBranch: 'plus-upgrade-sprint',
       },
     };
 
-    const { targetBranch, sourceBranch } = branchMap[env];
+    const { targetBranch } = branchMap[env];
 
     // 步骤2: 输入特性分支后缀
     const today = this.getDateTag();
@@ -172,7 +169,6 @@ export class QuickUpgradeManager {
     return {
       env,
       targetBranch: targetBranchInput,
-      sourceBranch,
       featureBranch,
     };
   }
@@ -181,7 +177,7 @@ export class QuickUpgradeManager {
    * 执行升级流程
    */
   private async runUpgrade(workspaceRoot: string, params: QuickUpgradeParams) {
-    const { env, targetBranch, sourceBranch, featureBranch } = params;
+    const { env, targetBranch, featureBranch } = params;
 
     const steps: SyncStep[] = [
       // 0. 信息展示
@@ -192,7 +188,7 @@ export class QuickUpgradeManager {
       {
         kind: 'info',
         title: `🎯 升级环境：${env.toUpperCase()}`,
-        detail: `   目标分支：${targetBranch}\n   源分支：${sourceBranch}\n   特性分支：${featureBranch}`,
+        detail: `临时特性分支：${featureBranch} 目标分支：${targetBranch}\n `,
       },
 
       // 1. 切换并更新目标分支
@@ -204,7 +200,7 @@ export class QuickUpgradeManager {
       {
         kind: 'command',
         title: `更新 origin/${targetBranch}`,
-        command: `git pull origin ${targetBranch}`,
+        command: () => this.runWithConflictSupport(`git pull origin ${targetBranch}`, workspaceRoot),
       },
 
       // 2. 创建/切换特性分支
@@ -214,7 +210,7 @@ export class QuickUpgradeManager {
         command: () => this.checkoutFeature(featureBranch, targetBranch, workspaceRoot),
       },
 
-      // 2.5. 从 Service 仓库更新特性分支
+      // 3. 从 Service 仓库更新特性分支
       {
         kind: 'command',
         title: `更新特性分支 ${featureBranch} - (从 Service 仓库)更新源码`,
@@ -223,16 +219,6 @@ export class QuickUpgradeManager {
           workspaceRoot
         ),
       },
-
-
-
-      // 3. 合入源代码分支（自动检测冲突，有冲突时会自动暂停）
-      {
-        kind: 'command',
-        title: `合入源码分支 origin/${sourceBranch}`,
-        command: () => this.runWithConflictSupport(`git pull origin ${sourceBranch}`, workspaceRoot),
-      },
-
       // 4. 执行升级脚本（支持失败后重试）
       {
         kind: 'command',
@@ -251,7 +237,7 @@ export class QuickUpgradeManager {
       {
         kind: 'command',
         title: '提交升级变更，等待git commit完成...',
-        command: () => this.commitChanges(sourceBranch, workspaceRoot),
+        command: () => this.commitChanges(targetBranch, workspaceRoot),
       },
 
       // 7. 合并前确认（二次确认）
@@ -278,11 +264,8 @@ export class QuickUpgradeManager {
       {
         kind: 'command',
         title: `更新 origin/${targetBranch}`,
-        command: `git pull origin ${targetBranch}`,
+        command: () => this.runWithConflictSupport(`git pull origin ${targetBranch}`, workspaceRoot),
       },
-
-
-
       // 11. 合并特性分支到目标分支（自动检测冲突）
       {
         kind: 'command',
@@ -308,7 +291,7 @@ export class QuickUpgradeManager {
         kind: 'info',
         title: '🎉 快速升级流程完成',
         detail: `后续操作：
-1. 部署 ${env === 'test' ? 'pre-test' : 'pre-inte'} 环境
+1. 部署 ${env === 'test' ? 'pre-test' : 'inte'} 环境${env === 'test' ? '\n   Jenkins 部署地址: https://jenkins.rd.chanjet.com/job/BUILD-to-HSY_PRETEST__cc-front-biz-app-service-plus/' : ''}
 2. 进行功能验证
 3. 观察线上日志
 4. 如有问题，可回滚到升级前版本`,
@@ -672,13 +655,47 @@ export class QuickUpgradeManager {
       // 检查分支是否存在
       await this.execLogged(`git rev-parse --verify ${featureBranch}`, cwd);
 
-      // 分支存在，删除并重新创建
-      this.output.appendLine(`✓ 特性分支 ${featureBranch} 已存在，正在重新创建...`);
-      // 强制删除旧分支
+      // 分支存在，检查是否有未推送的提交
+      this.output.appendLine(`✓ 特性分支 ${featureBranch} 已存在，检查是否有未推送的提交...`);
+
+      try {
+        // 检查是否有未推送的提交（比较本地分支和远程分支）
+        const { stdout: unpushedCommits } = await execAsync(
+          `git log origin/${featureBranch}..${featureBranch} --oneline 2>/dev/null || echo ""`,
+          { cwd }
+        );
+
+        if (unpushedCommits.trim()) {
+          // 有未推送的提交，询问用户
+          this.output.appendLine(`⚠️  检测到 ${featureBranch} 分支有未推送的提交：`);
+          this.output.appendLine(unpushedCommits.trim());
+          this.output.appendLine('');
+
+          const choice = await vscode.window.showWarningMessage(
+            `分支 ${featureBranch} 存在未推送的提交，删除将丢失这些提交！`,
+            { modal: true },
+            '继续删除',
+            '取消'
+          );
+
+          if (choice !== '继续删除') {
+            throw new Error('用户取消：不删除有未推送提交的分支');
+          }
+        }
+      } catch (error) {
+        // 远程分支不存在或其他错误，继续执行删除
+        this.output.appendLine('✓ 远程分支不存在或检查失败，继续删除本地分支');
+      }
+
+      // 删除并重新创建
+      this.output.appendLine(`✓ 正在删除并重新创建特性分支 ${featureBranch}...`);
       await this.execLogged(`git branch -D ${featureBranch}`, cwd);
       // 重新基于 baseBranch 创建
       await this.execLogged(`git checkout -b ${featureBranch} ${baseBranch}`, cwd);
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('用户取消')) {
+        throw error;
+      }
       // 分支不存在，基于基础分支创建
       this.output.appendLine(`✓ 创建新特性分支 ${featureBranch}`);
       await this.execLogged(`git checkout -b ${featureBranch} ${baseBranch}`, cwd);
@@ -694,8 +711,33 @@ export class QuickUpgradeManager {
       await this.execLogged(`git branch -D ${featureBranch}`, cwd);
       this.output.appendLine(`✅ 临时特性分支 ${featureBranch} 已删除\n`);
     } catch (error) {
-      // 删除失败不中断流程，只输出警告
-      this.output.appendLine(`⚠️  删除特性分支失败，可稍后手动删除: git branch -D ${featureBranch}\n`);
+      // 删除失败，询问用户是否重试或继续
+      this.output.appendLine(`⚠️  删除特性分支失败: ${error instanceof Error ? error.message : String(error)}\n`);
+
+      const choice = await vscode.window.showWarningMessage(
+        `删除特性分支 ${featureBranch} 失败，请选择操作`,
+        { modal: true },
+        '重试删除',
+        '跳过继续',
+        '手动删除后继续'
+      );
+
+      if (choice === '重试删除') {
+        // 递归重试
+        await this.deleteFeatureBranch(featureBranch, cwd);
+      } else if (choice === '手动删除后继续') {
+        // 暂停等待用户手动删除
+        await this.waitForContinue({
+          kind: 'pause',
+          title: '⚠️  等待手动删除特性分支',
+          detail: `请在终端手动删除分支：
+git branch -D ${featureBranch}
+
+完成后点击"继续"按钮`,
+        });
+      }
+      // '跳过继续' 或关闭对话框，直接继续流程
+      this.output.appendLine(`⏭️  跳过删除分支 ${featureBranch}，可稍后手动删除\n`);
     }
   }
 
@@ -783,14 +825,7 @@ export class QuickUpgradeManager {
    * 运行特性分支的单测（可选，支持失败后重试）
    */
   private async runFeatureBranchTest(cwd: string) {
-    // 使用模态对话框，确保用户能看到并做出选择
-    // const choice = await vscode.window.showInformationMessage(
-    //   `升级脚本已完成，是否在特性分支运行单测验证？\n\n单测通常需要 1-10 分钟，建议在提交前运行以验证升级后的代码正确性。`,
-    //   { modal: true },
-    //   '运行',
-    //   '跳过'
-    // );
-    this.output.appendLine('升级脚本已完成，将在特性分支运行单测验证？\n\n单测通常需要 1-10 分钟，请耐心等待...');
+    this.output.appendLine('升级脚本已完成，将在特性分支运行单测验证 \n\n单测通常需要 1-10 分钟，请耐心等待...');
 
     await this.runTestWithRetry(cwd, '特性分支');
   }
@@ -826,7 +861,7 @@ export class QuickUpgradeManager {
   /**
    * 提交变更
    */
-  private async commitChanges(sourceBranch: string, cwd: string): Promise<void> {
+  private async commitChanges(targetBranch: string, cwd: string): Promise<void> {
     // 检查是否有变更
     const { stdout } = await execAsync('git status --porcelain', { cwd });
     if (!stdout.trim()) {
@@ -838,7 +873,7 @@ export class QuickUpgradeManager {
     await this.execLogged('git add .', cwd);
 
     // 让用户填写提交信息
-    const defaultMessage = `upgrade(CPYF-12595):${this.getDateTag(true)} ${sourceBranch} 分支代码升级 `;
+    const defaultMessage = `upgrade(CPYF-12595):${this.getDateTag(true)} ${targetBranch} 分支代码升级 `;
     const commitMessage = await vscode.window.showInputBox({
       prompt: '请输入提交信息（Commit Message）',
       placeHolder: '例如：chore: upgrade from plus-test-250918',
@@ -864,7 +899,7 @@ export class QuickUpgradeManager {
 
       if (choice === '重新填写') {
         // 递归调用，重新提示
-        return this.commitChanges(sourceBranch, cwd);
+        return this.commitChanges(targetBranch, cwd);
       } else if (choice === '中止流程') {
         throw new Error('用户取消：未填写提交信息');
       } else if (choice === '跳过提交并结束') {
@@ -886,9 +921,30 @@ export class QuickUpgradeManager {
       await this.execLogged(`git commit -m "${commitMessage.replace(/"/g, '\\"')}" --no-verify`, cwd);
       this.output.appendLine('✅ 变更已提交\n');
     } catch (error) {
-      // Git 提交失败，但不终止流程
-      this.output.appendLine('⚠️  Git 提交失败，可能没有需要提交的变更或已经提交过\n');
-      // 提交失败时不抛出错误，允许流程继续
+      const errorMsg = error instanceof Error ? error.message : String(error);
+
+      // 检查是否是"没有内容需要提交"的情况
+      if (errorMsg.includes('nothing to commit') || errorMsg.includes('no changes added')) {
+        this.output.appendLine('✓ 没有需要提交的变更（可能已提交）\n');
+        return;
+      }
+
+      // 真正的提交失败，暂停让用户处理
+      this.output.appendLine(`❌ Git 提交失败: ${errorMsg}\n`);
+
+      await this.waitForContinue({
+        kind: 'pause',
+        title: '⚠️  Git 提交失败，需要处理',
+        detail: `提交失败原因：${errorMsg}\n\n请检查：
+1. 是否有语法错误或 lint 错误
+2. 是否有 pre-commit hook 失败
+3. 提交信息格式是否正确
+
+处理完成后点击"继续"按钮重新提交`,
+      });
+
+      // 用户处理完成后，递归重新尝试提交
+      return this.commitChanges(targetBranch, cwd);
     }
   }
 
