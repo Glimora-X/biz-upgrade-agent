@@ -30,6 +30,7 @@ export class QuickUpgradeManager {
   private pendingReject: ((reason?: any) => void) | null = null;
   private pendingMessage: string | null = null;
   private currentStatusBarItem: vscode.StatusBarItem | null = null;
+  private activePollingIntervals: Set<NodeJS.Timeout> = new Set();
 
   /**
    * 运行快速升级流程
@@ -361,6 +362,10 @@ export class QuickUpgradeManager {
       }
       throw error;
     } finally {
+      // 清理所有活动的轮询间隔（防止日志继续输出）
+      this.activePollingIntervals.forEach(interval => clearInterval(interval));
+      this.activePollingIntervals.clear();
+
       // 清理状态栏按钮（流程结束时，无论成功或失败）
       if (this.currentStatusBarItem) {
         this.currentStatusBarItem.dispose();
@@ -463,6 +468,7 @@ export class QuickUpgradeManager {
 
         if (fs.existsSync(successPath)) {
           clearInterval(checkInterval);
+          this.activePollingIntervals.delete(checkInterval);
           clearTimeout(timeout);
 
           // 清理标记文件
@@ -488,6 +494,7 @@ export class QuickUpgradeManager {
           resolve();
         } else if (fs.existsSync(failPath)) {
           clearInterval(checkInterval);
+          this.activePollingIntervals.delete(checkInterval);
           clearTimeout(timeout);
 
           // 清理标记文件
@@ -512,9 +519,13 @@ export class QuickUpgradeManager {
         }
       }, 500);
 
+      // 注册到活动轮询列表，以便在取消时清理
+      this.activePollingIntervals.add(checkInterval);
+
       // 超时保护（30 分钟）
       const timeout = setTimeout(() => {
         clearInterval(checkInterval);
+        this.activePollingIntervals.delete(checkInterval);
 
         // 清理标记文件
         try {
