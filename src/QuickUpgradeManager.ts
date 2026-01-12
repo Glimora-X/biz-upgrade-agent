@@ -103,13 +103,13 @@ export class QuickUpgradeManager {
     const envOptions: EnvPick[] = [
       {
         label: '$(cloud) Test 环境',
-        description: 'plus-upgrade-test → test-220915',
+        description: 'upgrade/test-**** → test-220915',
         detail: '测试环境快速升级',
         value: 'test',
       },
       {
         label: '$(rocket) Inte 环境',
-        description: 'plus-upgrade-sprint → sprint-251225',
+        description: 'upgrade/inte-**** → sprint-260127',
         detail: '集成环境快速升级',
         value: 'inte',
       },
@@ -129,7 +129,7 @@ export class QuickUpgradeManager {
         targetBranch: 'test-220915',
       },
       inte: {
-        targetBranch: 'sprint-251225',
+        targetBranch: 'sprint-260127',
       },
     };
 

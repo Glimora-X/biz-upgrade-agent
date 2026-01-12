@@ -2,7 +2,7 @@
   "name": "biz-upgrade-helper",
   "displayName": "biz框架升级助手: 从 biz-framework 到 biz-core。",
   "description": "业务框架升级助手，帮助开发者从 cc-front-biz-framework 平滑升级到 cc-front-biz-core。提供 AST 驱动的智能代码分析、实时检测、一键修复和自动化 Git 工作流，显著提升框架迁移效率。",
-  "version": "15.0.0",
+  "version": "16.0.0",
   "publisher": "GlimoraX",
   "icon": "images/icon.png",
   "repository": {
