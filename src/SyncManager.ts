@@ -91,8 +91,8 @@ export class SyncManager {
 
   private async collectSourceParams(remoteName: string, remoteUrl: string) {
     const baseBranch = await this.prompt(
-      '基线分支（默认 test-220915）',
-      'test-220915',
+      '基线分支（默认 test-260127）',
+      'test-260127',
       '源仓库(app-service)：同步到目标仓库的分支'
     );
     if (!baseBranch) return;
@@ -112,8 +112,8 @@ export class SyncManager {
   private async collectStandardParams(remoteName: string, remoteUrl: string): Promise<StandardSyncParams | undefined> {
     const today = this.getDateTag();
     const baseBranch = await this.prompt(
-      '升级基础分支（默认 test-220915）',
-      'test-220915',
+      '升级基础分支（默认 test-260127）',
+      'test-260127',
       '基线分支: 后续基于基线分支拉取特性分支'
     );
     if (!baseBranch) return;
@@ -168,8 +168,8 @@ export class SyncManager {
     if (previousBranch === undefined) return;
 
     const finalBaseBranch = await this.prompt(
-      '最终合入的分支（默认 test-220915）',
-      'test-220915',
+      '最终合入的分支（默认 test-260127）',
+      'test-260127',
       '完成升级后最终合入的主分支'
     );
     if (!finalBaseBranch) return;
