@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as https from 'https';
 import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 
@@ -153,6 +154,7 @@ export class QuickUpgradeManager {
       },
     });
 
+
     if (!suffix) return;
 
     const featureBranch = `upgrade/${env}-${suffix.trim()}`;
@@ -286,13 +288,26 @@ export class QuickUpgradeManager {
         title: `删除临时特性分支 ${featureBranch}`,
         command: () => this.deleteFeatureBranch(featureBranch, workspaceRoot),
       },
+      // 14. 自动触发 Jenkins 部署（仅 test 环境）
+      ...(env === 'test' ? [{
+        kind: 'command' as StepKind,
+        title: '🚀 自动触发 Jenkins 部署 (pre-test 环境)',
+        command: () => this.triggerJenkinsBuild(targetBranch),
+      }] : []),
 
-      // 14. 完成
+      // 15. 完成
       {
         kind: 'info',
         title: '🎉 快速升级流程完成',
-        detail: `后续操作：
-1. 部署 ${env === 'test' ? 'pre-test' : 'inte'} 环境${env === 'test' ? '\n   Jenkins 部署地址: https://jenkins.rd.chanjet.com/job/BUILD-to-HSY_PRETEST__cc-front-biz-app-service-plus/' : ''}
+        detail: env === 'test'
+          ? `后续操作：
+1. 查看 Jenkins 构建状态
+   Jenkins 地址: https://jenkins.rd.chanjet.com/job/BUILD-to-HSY_PRETEST__cc-front-biz-app-service-plus/
+2. 进行功能验证
+3. 观察线上日志
+4. 如有问题，可回滚到升级前版本`
+          : `后续操作：
+1. 部署 inte 环境
 2. 进行功能验证
 3. 观察线上日志
 4. 如有问题，可回滚到升级前版本`,
@@ -405,6 +420,87 @@ export class QuickUpgradeManager {
     }
   }
 
+  /**
+   * 触发 Jenkins 构建（test 环境自动部署）
+   * 凭据未配置时优雅降级为手动部署提示，触发失败不中断升级流程
+   */
+  private async triggerJenkinsBuild(branchName: string): Promise<void> {
+    const cfg = vscode.workspace.getConfiguration('bizFrameworkUpgrade');
+    const username = cfg.get<string>('jenkins.username', '');
+    const token = cfg.get<string>('jenkins.token', '');
+    const jobUrl = cfg.get<string>(
+      'jenkins.jobUrl',
+      'https://jenkins.rd.chanjet.com/job/BUILD-to-HSY_PRETEST__cc-front-biz-app-service-plus'
+    );
+    if (!username || !token) {
+      this.output.appendLine('⚠️ Jenkins 凭据未配置，跳过自动部署');
+      this.output.appendLine('   请在 VS Code 设置中配置 bizFrameworkUpgrade.jenkins.username 和 bizFrameworkUpgrade.jenkins.token');
+      const action = await vscode.window.showWarningMessage(
+        'Jenkins 凭据未配置，无法自动部署。',
+        '打开设置',
+        '跳过'
+      );
+      if (action === '打开设置') {
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'bizFrameworkUpgrade.jenkins');
+      }
+      return;
+    }
+
+    const parsedJobUrl = new URL(jobUrl);
+    const base = `${parsedJobUrl.protocol}//${parsedJobUrl.host}`;
+    const jobName = parsedJobUrl.pathname.split('/job/')[1]?.replace(/\/$/, '');
+    if (!jobName) {
+      throw new Error(`无法从 jobUrl 解析 jobName: ${jobUrl}`);
+    }
+
+    const authHeader = `Basic ${Buffer.from(`${username}:${token}`).toString('base64')}`;
+
+    try {
+      const headers: Record<string, string> = { Authorization: authHeader };
+
+      // 1. 获取 CSRF crumb
+      this.output.appendLine('🔄 正在获取 Jenkins CSRF Token...');
+      try {
+        const crumbRes = await fetch(`${base}/crumbIssuer/api/json`, { headers });
+        if (crumbRes.ok) {
+          const crumb = (await crumbRes.json()) as { crumbRequestField?: string; crumb?: string };
+          if (crumb.crumbRequestField && crumb.crumb) {
+            headers[crumb.crumbRequestField] = crumb.crumb;
+            this.output.appendLine('✅ CSRF Token 获取成功');
+          }
+        }
+      } catch {
+        this.output.appendLine('⚠️ 未能获取 CSRF Token，请手动构建...');
+      }
+
+      // 2. 触发构建
+      const params = new URLSearchParams({ BRANCH_NAME: branchName });
+      const url = `${base}/job/${encodeURIComponent(jobName)}/buildWithParameters?${params.toString()}`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        redirect: 'manual',
+      });
+
+      if (res.status !== 201 && res.status !== 200) {
+        const text = await res.text();
+        const isErrorPage = /Oops!|log in|A problem occurred|Logging ID=/i.test(text);
+        const msg = isErrorPage
+          ? `Jenkins 返回 ${res.status}：需登录或无权触发，请检查用户名和 Token 与任务权限`
+          : `Jenkins 请求失败 ${res.status}: ${text.slice(0, 200)}`;
+        throw new Error(msg);
+      }
+
+      this.output.appendLine('✅ Jenkins 构建已成功触发, 请在 Jenkins 中查看构建进度。！');
+      vscode.window.showInformationMessage('✅ Jenkins 构建已触发，请在 Jenkins 中查看构建进度。');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.output.appendLine(`❌ Jenkins 部署触发失败: ${message}`);
+      this.output.appendLine(`   请手动触发: ${jobUrl}`);
+      vscode.window.showWarningMessage(`Jenkins 自动部署失败: ${message}，请手动部署。`);
+    }
+  }
   /**
    * 在集成终端中执行命令并自动等待完成（支持 ANSI 颜色）
    * 使用标记文件来检测命令是否完成

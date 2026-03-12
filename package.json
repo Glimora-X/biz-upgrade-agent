@@ -2,7 +2,7 @@
   "name": "biz-upgrade-helper",
   "displayName": "biz框架升级助手: 从 biz-framework 到 biz-core。",
   "description": "业务框架升级助手，帮助开发者从 cc-front-biz-framework 平滑升级到 cc-front-biz-core。提供 AST 驱动的智能代码分析、实时检测、一键修复和自动化 Git 工作流，显著提升框架迁移效率。",
-  "version": "17.0.0",
+  "version": "19.0.0",
   "publisher": "GlimoraX",
   "icon": "images/icon.png",
   "repository": {
@@ -71,6 +71,21 @@
             "upgrade.config.json"
           ],
           "description": "规则文件路径"
+        },
+        "bizFrameworkUpgrade.jenkins.username": {
+          "type": "string",
+          "default": "",
+          "description": "Jenkins 用户名（用于 test 环境自动部署，配置一次全局生效）"
+        },
+        "bizFrameworkUpgrade.jenkins.token": {
+          "type": "string",
+          "default": "",
+          "description": "Jenkins API Token（在 Jenkins → 用户设置 → API Token 中生成，配置一次全局生效）"
+        },
+        "bizFrameworkUpgrade.jenkins.jobUrl": {
+          "type": "string",
+          "default": "https://jenkins.rd.chanjet.com/job/BUILD-to-HSY_PRETEST__cc-front-biz-app-service-plus",
+          "description": "Jenkins 部署 Job URL（test 环境自动部署的目标 Job）"
         }
       }
     },
@@ -95,7 +110,8 @@
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
     "package": "vsce package",
-    "publish": "vsce publish"
+    "publish": "vsce publish",
+    "package:local": "npm run compile && vsce package && cursor --install-extension biz-upgrade-helper-18.0.0.vsix"
   },
   "devDependencies": {
     "@types/babel__traverse": "^7.20.0",
