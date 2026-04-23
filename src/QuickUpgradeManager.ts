@@ -4,6 +4,8 @@ import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
+const SERVICE_HTTPS_PULL_URL = 'https://gitlab.rd.chanjet.com/cc_web/cc-front-biz-app-service.git';
+const SERVICE_SSH_PULL_URL = 'git@gitlab.rd.chanjet.com:cc_web/cc-front-biz-app-service.git';
 
 type StepKind = 'command' | 'pause' | 'info';
 
@@ -110,7 +112,7 @@ export class QuickUpgradeManager {
       },
       {
         label: '$(rocket) Inte 环境',
-        description: 'upgrade/inte-**** → sprint-260326',
+        description: 'upgrade/inte-**** → sprint-260423',
         detail: '集成环境快速升级',
         value: 'inte',
       },
@@ -130,7 +132,7 @@ export class QuickUpgradeManager {
         targetBranch: 'test-260127',
       },
       inte: {
-        targetBranch: 'sprint-260326',
+        targetBranch: 'sprint-260423',
       },
     };
 
@@ -652,6 +654,11 @@ export class QuickUpgradeManager {
       if (stdout) this.output.appendLine(stdout.trim());
       if (stderr) this.output.appendLine(stderr.trim());
     } catch (error) {
+      const retried = await this.retryServicePullWithSsh(command, cwd);
+      if (retried) {
+        return;
+      }
+
       const err = error as { stderr?: string; stdout?: string; message: string };
       const stderr = (err.stderr || '').trim();
       const stdout = (err.stdout || '').trim();
@@ -682,6 +689,35 @@ export class QuickUpgradeManager {
 
       // 其他错误
       throw new Error(err.message);
+    }
+  }
+
+  private async retryServicePullWithSsh(command: string, cwd: string): Promise<boolean> {
+    const normalizedCommand = command.trim();
+    const match = normalizedCommand.match(/^git pull\s+(\S+)\s+(\S+)$/);
+    if (!match) {
+      return false;
+    }
+
+    const pullUrl = match[1];
+    const pullBranch = match[2];
+    if (pullUrl !== SERVICE_HTTPS_PULL_URL) {
+      return false;
+    }
+
+    const retryCommand = `git pull ${SERVICE_SSH_PULL_URL} ${pullBranch}`;
+    this.output.appendLine(`git pull 失败，改用 SSH 地址重试：${retryCommand}`);
+    try {
+      const { stdout, stderr } = await execAsync(retryCommand, { cwd });
+      if (stdout) this.output.appendLine(stdout.trim());
+      if (stderr) this.output.appendLine(stderr.trim());
+      this.output.appendLine('已使用 SSH 地址重试 git pull 并成功。');
+      return true;
+    } catch (retryError) {
+      const err = retryError as { stderr?: string; message: string };
+      if (err.stderr) this.output.appendLine(err.stderr.trim());
+      this.output.appendLine(`SSH 重试仍失败：${err.message}`);
+      return false;
     }
   }
 

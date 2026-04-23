@@ -3,6 +3,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
+const ORIGIN_PULL_RETRY_URL = 'git@gitlab.rd.chanjet.com:cc_web/cc-front-biz-app-service.git';
 
 type StepKind = 'command' | 'pause' | 'info';
 
@@ -373,7 +374,32 @@ export class SyncManager {
     } catch (error) {
       const err = error as { stderr?: string; message: string };
       if (err.stderr) this.output.appendLine(err.stderr.trim());
+      const retried = await this.retryOriginPullWithSsh(command, cwd);
+      if (retried) {
+        return;
+      }
       throw new Error(err.message);
+    }
+  }
+
+  private async retryOriginPullWithSsh(command: string, cwd: string): Promise<boolean> {
+    const isOriginPull = /^git pull origin\s+\S+/.test(command.trim());
+    if (!isOriginPull) {
+      return false;
+    }
+
+    this.output.appendLine(`git pull 失败，尝试切换 origin 到 SSH 地址后重试：${ORIGIN_PULL_RETRY_URL}`);
+    try {
+      await execAsync(`git remote set-url origin ${ORIGIN_PULL_RETRY_URL}`, { cwd });
+      const { stdout, stderr } = await execAsync(command, { cwd });
+      if (stdout) this.output.appendLine(stdout.trim());
+      if (stderr) this.output.appendLine(stderr.trim());
+      this.output.appendLine('已使用 SSH 地址重试 git pull 并成功。');
+      return true;
+    } catch (retryError) {
+      const err = retryError as { stderr?: string; message: string };
+      if (err.stderr) this.output.appendLine(err.stderr.trim());
+      throw new Error(`首次 pull 失败，切换 SSH 地址重试仍失败：${err.message}`);
     }
   }
 
