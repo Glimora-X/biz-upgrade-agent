@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
   const detector = new DeprecationDetector(astAnalyzer);
   const hoverProvider = new EnhancedHoverProvider(astAnalyzer);
   const quickFixProvider = new QuickFixProvider(astAnalyzer);
-  const quickUpgradeManager = new QuickUpgradeManager();
+  const quickUpgradeManager = new QuickUpgradeManager(context.extensionPath);
 
   // 加载配置
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;

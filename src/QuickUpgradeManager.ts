@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import * as https from 'https';
+import * as path from 'path';
 import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
+import { collectHkjParams } from './hkjUpgrade/collectHkjParams';
 
 const execAsync = promisify(exec);
 const SERVICE_HTTPS_PULL_URL = 'https://gitlab.rd.chanjet.com/cc_web/cc-front-biz-app-service.git';
@@ -18,9 +20,10 @@ interface SyncStep {
 }
 
 interface QuickUpgradeParams {
-  env: 'test' | 'inte';
+  env: 'test' | 'inte' | 'hkj';
   targetBranch: string;
   featureBranch: string;
+  srcDirs?: string[];
 }
 
 /**
@@ -35,6 +38,8 @@ export class QuickUpgradeManager {
   private currentStatusBarItem: vscode.StatusBarItem | null = null;
   private activePollingIntervals: Set<NodeJS.Timeout> = new Set();
 
+  constructor(private readonly extensionPath: string) {}
+
   /**
    * 运行快速升级流程
    */
@@ -44,7 +49,7 @@ export class QuickUpgradeManager {
       await this.preflightCheck(workspaceRoot);
 
       // 收集参数
-      const params = await this.collectParams();
+      const params = await this.collectParams(workspaceRoot);
       if (!params) return;
 
       // 执行升级流程
@@ -100,9 +105,9 @@ export class QuickUpgradeManager {
   /**
    * 收集升级参数
    */
-  private async collectParams(): Promise<QuickUpgradeParams | undefined> {
+  private async collectParams(workspaceRoot: string): Promise<QuickUpgradeParams | undefined> {
     // 步骤1: 选择升级环境
-    type EnvPick = vscode.QuickPickItem & { value: 'test' | 'inte' };
+    type EnvPick = vscode.QuickPickItem & { value: 'test' | 'inte' | 'hkj' };
     const envOptions: EnvPick[] = [
       {
         label: '$(cloud) Test 环境',
@@ -116,6 +121,12 @@ export class QuickUpgradeManager {
         detail: '集成环境快速升级',
         value: 'inte',
       },
+      {
+        label: '$(folder) 好会计升级',
+        description: 'upgrade/hkj-**** → 指定 src 子目录',
+        detail: '当前仓库按 src 子目录升级，不拉 app-service',
+        value: 'hkj',
+      },
     ];
 
     const envChoice = await vscode.window.showQuickPick<EnvPick>(envOptions, {
@@ -125,6 +136,10 @@ export class QuickUpgradeManager {
 
     if (!envChoice) return;
     const env = envChoice.value;
+
+    if (env === 'hkj') {
+      return collectHkjParams(workspaceRoot);
+    }
 
     // 根据环境确定分支
     const branchMap = {
@@ -182,6 +197,10 @@ export class QuickUpgradeManager {
    * 执行升级流程
    */
   private async runUpgrade(workspaceRoot: string, params: QuickUpgradeParams) {
+    if (params.env === 'hkj') {
+      return this.runHkjUpgrade(workspaceRoot, params);
+    }
+
     const { env, targetBranch, featureBranch } = params;
 
     const steps: SyncStep[] = [
@@ -317,6 +336,102 @@ export class QuickUpgradeManager {
     ];
 
     await this.runSteps('Biz 框架快速升级', steps, workspaceRoot);
+  }
+
+  /**
+   * 好会计升级：跳过 app-service 拉取与 Jenkins；一次终端按 --dirs 升级指定 src 子目录。
+   */
+  private async runHkjUpgrade(workspaceRoot: string, params: QuickUpgradeParams) {
+    const { targetBranch, featureBranch, srcDirs } = params;
+    const dirs = srcDirs ?? [];
+
+    const steps: SyncStep[] = [
+      {
+        kind: 'info',
+        title: `📁 工作区：${workspaceRoot}`,
+      },
+      {
+        kind: 'info',
+        title: '🎯 升级环境：好会计 (HKJ)',
+        detail: `临时特性分支：${featureBranch} 目标分支：${targetBranch}\n升级目录：${dirs.map((d) => `src/${d}`).join(', ')}\n`,
+      },
+      {
+        kind: 'command',
+        title: `切换到目标分支 ${targetBranch}`,
+        command: `git checkout ${targetBranch}`,
+      },
+      {
+        kind: 'command',
+        title: `更新 origin/${targetBranch}`,
+        command: () => this.runWithConflictSupport(`git pull origin ${targetBranch}`, workspaceRoot),
+      },
+      {
+        kind: 'command',
+        title: `创建/切换特性分支 ${featureBranch}`,
+        command: () => this.checkoutFeature(featureBranch, targetBranch, workspaceRoot),
+      },
+      {
+        kind: 'command',
+        title: `正在执行升级脚本（目录: ${dirs.join(', ')}），请在终端中查看进度...`,
+        command: () => this.runUpgradeScriptWithRetry(workspaceRoot, dirs),
+      },
+      {
+        kind: 'command',
+        title: `运行特性分支 ${featureBranch} 的单测验证`,
+        command: () => this.runFeatureBranchTest(workspaceRoot),
+      },
+      {
+        kind: 'command',
+        title: '提交升级变更，等待git commit完成...',
+        command: () => this.commitChanges(targetBranch, workspaceRoot),
+      },
+      {
+        kind: 'pause',
+        title: `⚠️  即将合并到目标分支 ${targetBranch}`,
+        detail: `请确认以下信息：
+✓ 特性分支 ${featureBranch} 已完成升级
+✓ 单测已通过（或已知风险）
+
+注意：此操作将切到 ${targetBranch} 分支进行代码合并，请谨慎操作！
+
+确认无误后点击"继续"按钮。`,
+      },
+      {
+        kind: 'command',
+        title: `切回目标分支 ${targetBranch}`,
+        command: `git checkout ${targetBranch}`,
+      },
+      {
+        kind: 'command',
+        title: `更新 origin/${targetBranch}`,
+        command: () => this.runWithConflictSupport(`git pull origin ${targetBranch}`, workspaceRoot),
+      },
+      {
+        kind: 'command',
+        title: `合并 ${featureBranch} 到 ${targetBranch}`,
+        command: () => this.runWithConflictSupport(`git merge ${featureBranch}`, workspaceRoot),
+      },
+      {
+        kind: 'command',
+        title: `推送 ${targetBranch} 到 origin`,
+        command: `git push origin ${targetBranch}`,
+      },
+      {
+        kind: 'command',
+        title: `删除临时特性分支 ${featureBranch}`,
+        command: () => this.deleteFeatureBranch(featureBranch, workspaceRoot),
+      },
+      {
+        kind: 'info',
+        title: '🎉 好会计升级流程完成',
+        detail: `后续操作：
+1. 进行功能验证
+2. 观察线上日志
+3. 如有问题，可回滚到升级前版本`,
+      },
+    ];
+
+    await this.runSteps('Biz 框架快速升级 - 好会计', steps, workspaceRoot);
   }
 
   /**
@@ -944,10 +1059,20 @@ git branch -D ${featureBranch}
   /**
    * 运行升级脚本（支持失败后重试）
    */
-  private async runUpgradeScriptWithRetry(cwd: string) {
+  private getUpgradeScriptCommand(srcDirs?: string[]): string {
+    const scriptPath = path.join(this.extensionPath, 'scripts', 'upgrade-bizcore.js');
+    if (srcDirs?.length) {
+      return `node "${scriptPath}" --dirs ${srcDirs.join(',')}`;
+    }
+    return `node "${scriptPath}"`;
+  }
+
+  private async runUpgradeScriptWithRetry(cwd: string, srcDirs?: string[]) {
+    const cmd = this.getUpgradeScriptCommand(srcDirs);
+
     await this.executeWithRetry({
       taskName: '升级脚本',
-      taskAction: () => this.execInTerminalAndWait('node ./scripts/upgrade-bizcore.js', cwd, '升级脚本'),
+      taskAction: () => this.execInTerminalAndWait(cmd, cwd, '升级脚本'),
       startIcon: '🔄',
       successIcon: '✅',
       failIcon: '⚠️',
